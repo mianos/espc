@@ -1,35 +1,48 @@
 #if 1
 #include <stdio.h>
+#include "sdkconfig.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "driver/ledc.h"
-#include "driver/pulse_cnt.h"  // Use the appropriate PCNT driver header
+// #include "driver/pulse_cnt.h"  // Use the appropriate PCNT driver header
+// #include "driver/pcnt.h"
+#include "driver/ledc.h"
+#include "esp_err.h"
 
-void signal_gen(uint32_t freq_hz, int gpio) {
-    // Configure the timer
-    ledc_timer_config_t ledc_timer;
-    ledc_timer.speed_mode = LEDC_HIGH_SPEED_MODE;
-    ledc_timer.duty_resolution = LEDC_TIMER_1_BIT;
-    ledc_timer.timer_num = LEDC_TIMER_0;
-    ledc_timer.freq_hz = freq_hz; // Frequency of PWM signal
-    ledc_timer.clk_cfg = LEDC_AUTO_CLK;
+
+// Define the configuration parameters for the LEDC
+#define LEDC_CHANNEL           LEDC_CHANNEL_0
+#define LEDC_MODE              LEDC_LOW_SPEED_MODE
+#define LEDC_GPIO_NUM          19
+#define LEDC_TIMER             LEDC_TIMER_0
+#define LEDC_FREQUENCY         10000000 // Target frequency of 10MHz
+#define LEDC_RESOLUTION        LEDC_TIMER_1_BIT // Minimum resolution for maximum frequency
+
+void init_ledc_square_wave() {
+    // Initialize timer configuration
+    ledc_timer_config_t ledc_timer = {
+        .duty_resolution = LEDC_RESOLUTION, // Set the timer resolution
+        .freq_hz = LEDC_FREQUENCY,          // Target frequency for the LEDC
+        .speed_mode = LEDC_MODE,            // Timer mode
+        .timer_num = LEDC_TIMER,            // Timer index
+        .clk_cfg = LEDC_AUTO_CLK,           // Automatically select the clock source
+    };
     ledc_timer_config(&ledc_timer);
 
-    ledc_channel_config_t ledc_channel;
-    memset(&ledc_channel, 0, sizeof(ledc_channel_config_t));
-    ledc_channel.speed_mode     = LEDC_HIGH_SPEED_MODE,
-    ledc_channel.channel        = LEDC_CHANNEL_0,
-    ledc_channel.intr_type      = LEDC_INTR_DISABLE,
-    ledc_channel.timer_sel      = LEDC_TIMER_0,
-    ledc_channel.gpio_num       = gpio,
-    ledc_channel.duty           = 1, // Set duty to 0%
+    // Initialize channel configuration
+    ledc_channel_config_t ledc_channel = {
+        .channel = LEDC_CHANNEL,
+        .duty = 1,                         // Set duty cycle to 50%
+        .gpio_num = LEDC_GPIO_NUM,         // GPIO number for the LEDC output
+        .speed_mode = LEDC_MODE,
+        .hpoint = 0,
+        .timer_sel = LEDC_TIMER
+    };
     ledc_channel_config(&ledc_channel);
 }
 
 void app_main() {
-	signal_gen(1000000, 17);
- //   setup_pulse_counter();
-
+    init_ledc_square_wave();
     while (1) {
         vTaskDelay(pdMS_TO_TICKS(1000));  // Delay for 1 second
     }
