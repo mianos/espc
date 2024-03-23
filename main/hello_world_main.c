@@ -1,4 +1,3 @@
-#if 1
 #include <stdio.h>
 #include "sdkconfig.h"
 #include "freertos/FreeRTOS.h"
@@ -9,11 +8,34 @@
 #include "driver/ledc.h"
 #include "esp_log.h"
 #include "esp_err.h"
+#include "esp_timer.h"
 
 
 static const char *TAG = "example";
 #define PCNT_INPUT_SIG_IO   20 // Pulse Input GPIO
 
+#define PULSE_PIN GPIO_NUM_21 // Change this to the desired GPIO pin number
+
+esp_timer_handle_t timer_handle;
+
+void IRAM_ATTR timer_callback(void *arg) {
+    static bool state = false;
+    gpio_set_level(PULSE_PIN, state);
+    state = !state;
+}
+
+void start_pulse_timer(void) {
+    gpio_reset_pin(PULSE_PIN);
+    gpio_set_direction(PULSE_PIN, GPIO_MODE_OUTPUT);
+
+    const esp_timer_create_args_t timer_args = {
+        .callback = &timer_callback,
+        .name = "pulse_timer"
+    };
+
+    esp_timer_create(&timer_args, &timer_handle);
+    esp_timer_start_periodic(timer_handle, 500000); // .5 second square wave
+}
 
 
 #define EXAMPLE_PCNT_HIGH_LIMIT 20000
@@ -42,14 +64,6 @@ void pcnt(void)
         .low_limit = EXAMPLE_PCNT_LOW_LIMIT,
     };
     ESP_ERROR_CHECK(pcnt_new_unit(&unit_config, &pcnt_unit));
-
-#if 0
-    ESP_LOGI(TAG, "set glitch filter");
-    pcnt_glitch_filter_config_t filter_config = {
-        .max_glitch_ns = 1000,
-    };
-    ESP_ERROR_CHECK(pcnt_unit_set_glitch_filter(pcnt_unit, &filter_config));
-#endif
 
     ESP_LOGI(TAG, "install pcnt channel");
     pcnt_chan_config_t chan_a_config = {
@@ -113,12 +127,17 @@ void init_ledc_square_wave() {
 }
 
 void app_main() {
-  queue = xQueueCreate(10, sizeof(int));
+    queue = xQueueCreate(10, sizeof(int));
+
     init_ledc_square_wave();
-	pcnt();
+    pcnt();
+    start_pulse_timer();
+
     // Report counter value
     int pulse_count = 0;
     int event_count = 0;
+    int pin22_state = 0;
+
     while (1) {
         if (xQueueReceive(queue, &event_count, pdMS_TO_TICKS(1000))) {
             ESP_LOGI(TAG, "Watch point event, count: %d", event_count);
@@ -126,55 +145,15 @@ void app_main() {
             ESP_ERROR_CHECK(pcnt_unit_get_count(pcnt_unit, &pulse_count));
             ESP_LOGI(TAG, "Pulse count: %d", pulse_count);
         }
-        vTaskDelay(pdMS_TO_TICKS(1000));  // Delay for 1 second
-		printf("cnt is %d\n", cnt);
+
+        // Read the state of pin 22
+        pin22_state = gpio_get_level(GPIO_NUM_22);
+
+        // Print the state of pin 22 on the console
+        ESP_LOGI(TAG, "Pin 22 state: %d", pin22_state);
+
+        vTaskDelay(pdMS_TO_TICKS(500)); 
+
+        printf("cnt is %d\n", cnt);
     }
 }
-#else
-#include <stdio.h>
-#include <inttypes.h>
-#include "sdkconfig.h"
-#include "freertos/FreeRTOS.h"
-#include "freertos/task.h"
-#include "esp_chip_info.h"
-#include "esp_flash.h"
-#include "esp_system.h"
-
-void app_main(void)
-{
-    printf("Hello world!\n");
-
-    /* Print chip information */
-    esp_chip_info_t chip_info;
-    uint32_t flash_size;
-    esp_chip_info(&chip_info);
-    printf("This is %s chip with %d CPU core(s), %s%s%s%s, ",
-           CONFIG_IDF_TARGET,
-           chip_info.cores,
-           (chip_info.features & CHIP_FEATURE_WIFI_BGN) ? "WiFi/" : "",
-           (chip_info.features & CHIP_FEATURE_BT) ? "BT" : "",
-           (chip_info.features & CHIP_FEATURE_BLE) ? "BLE" : "",
-           (chip_info.features & CHIP_FEATURE_IEEE802154) ? ", 802.15.4 (Zigbee/Thread)" : "");
-
-    unsigned major_rev = chip_info.revision / 100;
-    unsigned minor_rev = chip_info.revision % 100;
-    printf("silicon revision v%d.%d, ", major_rev, minor_rev);
-    if(esp_flash_get_size(NULL, &flash_size) != ESP_OK) {
-        printf("Get flash size failed");
-        return;
-    }
-
-    printf("%" PRIu32 "MB %s flash\n", flash_size / (uint32_t)(1024 * 1024),
-           (chip_info.features & CHIP_FEATURE_EMB_FLASH) ? "embedded" : "external");
-
-    printf("Minimum free heap size: %" PRIu32 " bytes\n", esp_get_minimum_free_heap_size());
-
-    for (int i = 10; i >= 0; i--) {
-        printf("Restarting in %d seconds...\n", i);
-        vTaskDelay(1000 / portTICK_PERIOD_MS);
-    }
-    printf("Restarting now.\n");
-    fflush(stdout);
-    esp_restart();
-}
-#endif
