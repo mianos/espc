@@ -2,7 +2,6 @@
 #include "sdkconfig.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
-#include "driver/ledc.h"
 #include "driver/pulse_cnt.h"  // Use the appropriate PCNT driver header
 // #include "driver/pcnt.h"
 #include "driver/ledc.h"
@@ -11,37 +10,15 @@
 #include "esp_timer.h"
 
 
-static const char *TAG = "example";
+static const char *TAG = "counter";
 #define PCNT_INPUT_SIG_IO   20 // Pulse Input GPIO
-
-#define PULSE_PIN GPIO_NUM_21 // Change this to the desired GPIO pin number
-
-esp_timer_handle_t timer_handle;
-
-void IRAM_ATTR timer_callback(void *arg) {
-    static bool state = false;
-    gpio_set_level(PULSE_PIN, state);
-    state = !state;
-}
-
-void start_pulse_timer(void) {
-    gpio_reset_pin(PULSE_PIN);
-    gpio_set_direction(PULSE_PIN, GPIO_MODE_OUTPUT);
-
-    const esp_timer_create_args_t timer_args = {
-        .callback = &timer_callback,
-        .name = "pulse_timer"
-    };
-
-    esp_timer_create(&timer_args, &timer_handle);
-    esp_timer_start_periodic(timer_handle, 500000); // .5 second square wave
-}
-
+#define PCNT_INPUT_SIG_TRIGGER   GPIO_NUM_22 // Pulse Input GPIO
 
 #define EXAMPLE_PCNT_HIGH_LIMIT 20000
 #define EXAMPLE_PCNT_LOW_LIMIT  -1
 
 static volatile int cnt = 0;
+static volatile int trigger_cnt = 0;
 
 QueueHandle_t queue;
 pcnt_unit_handle_t pcnt_unit = NULL;
@@ -56,6 +33,13 @@ static bool example_pcnt_on_reach(pcnt_unit_handle_t unit, const pcnt_watch_even
     return (high_task_wakeup == pdTRUE);
 }
 
+static void IRAM_ATTR ctrl_signal_isr_handler(void* arg)
+{
+	trigger_cnt++;
+    // Disable the counter
+    pcnt_unit_stop(pcnt_unit);
+}
+
 void pcnt(void)
 {
     ESP_LOGI(TAG, "install pcnt unit");
@@ -68,7 +52,7 @@ void pcnt(void)
     ESP_LOGI(TAG, "install pcnt channel");
     pcnt_chan_config_t chan_a_config = {
         .edge_gpio_num = PCNT_INPUT_SIG_IO,
-        .level_gpio_num = -1
+        .level_gpio_num = PCNT_INPUT_SIG_TRIGGER
     };
     pcnt_channel_handle_t pcnt_chan_a = NULL;
     ESP_ERROR_CHECK(pcnt_new_channel(pcnt_unit, &chan_a_config, &pcnt_chan_a));
@@ -84,6 +68,22 @@ void pcnt(void)
     QueueHandle_t queue = xQueueCreate(10, sizeof(int));
     ESP_ERROR_CHECK(pcnt_unit_register_event_callbacks(pcnt_unit, &cbs, queue));
 
+    // Configure the control signal GPIO as input
+    gpio_config_t io_conf = {
+        .intr_type = GPIO_INTR_POSEDGE, // Trigger interrupt on rising edge
+        .mode = GPIO_MODE_INPUT,
+        .pin_bit_mask = (1ULL << PCNT_INPUT_SIG_TRIGGER),
+        .pull_up_en = GPIO_PULLUP_DISABLE,
+        .pull_down_en = GPIO_PULLDOWN_DISABLE
+    };
+    ESP_ERROR_CHECK(gpio_config(&io_conf));
+
+    // Install the GPIO ISR service
+    ESP_ERROR_CHECK(gpio_install_isr_service(0));
+
+    // Hook the ISR handler for the control signal GPIO
+    ESP_ERROR_CHECK(gpio_isr_handler_add(PCNT_INPUT_SIG_TRIGGER, ctrl_signal_isr_handler, NULL));
+
     ESP_LOGI(TAG, "enable pcnt unit");
     ESP_ERROR_CHECK(pcnt_unit_enable(pcnt_unit));
     ESP_LOGI(TAG, "clear pcnt unit");
@@ -93,44 +93,15 @@ void pcnt(void)
 }
 
 
-
-
-// Define the configuration parameters for the LEDC
-#define LEDC_CHANNEL           LEDC_CHANNEL_0
-#define LEDC_MODE              LEDC_LOW_SPEED_MODE
-#define LEDC_GPIO_NUM          19
-#define LEDC_TIMER             LEDC_TIMER_0
-#define LEDC_FREQUENCY         10000000 // Target frequency of 10MHz
-#define LEDC_RESOLUTION        LEDC_TIMER_1_BIT // Minimum resolution for maximum frequency
-
-void init_ledc_square_wave() {
-    // Initialize timer configuration
-    ledc_timer_config_t ledc_timer = {
-        .duty_resolution = LEDC_RESOLUTION, // Set the timer resolution
-        .freq_hz = LEDC_FREQUENCY,          // Target frequency for the LEDC
-        .speed_mode = LEDC_MODE,            // Timer mode
-        .timer_num = LEDC_TIMER,            // Timer index
-        .clk_cfg = LEDC_AUTO_CLK,           // Automatically select the clock source
-    };
-    ledc_timer_config(&ledc_timer);
-
-    // Initialize channel configuration
-    ledc_channel_config_t ledc_channel = {
-        .channel = LEDC_CHANNEL,
-        .duty = 1,                         // Set duty cycle to 50%
-        .gpio_num = LEDC_GPIO_NUM,         // GPIO number for the LEDC output
-        .speed_mode = LEDC_MODE,
-        .hpoint = 0,
-        .timer_sel = LEDC_TIMER
-    };
-    ledc_channel_config(&ledc_channel);
-}
-
 void app_main() {
     queue = xQueueCreate(10, sizeof(int));
 
+	extern void init_ledc_square_wave();
+
     init_ledc_square_wave();
     pcnt();
+
+	extern void start_pulse_timer();
     start_pulse_timer();
 
     // Report counter value
@@ -154,6 +125,6 @@ void app_main() {
 
         vTaskDelay(pdMS_TO_TICKS(500)); 
 
-        printf("cnt is %d\n", cnt);
+        printf("cnt is %d trigger_cnt %d\n", cnt, trigger_cnt);
     }
 }
