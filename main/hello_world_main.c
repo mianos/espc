@@ -4,10 +4,81 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "driver/ledc.h"
-// #include "driver/pulse_cnt.h"  // Use the appropriate PCNT driver header
+#include "driver/pulse_cnt.h"  // Use the appropriate PCNT driver header
 // #include "driver/pcnt.h"
 #include "driver/ledc.h"
+#include "esp_log.h"
 #include "esp_err.h"
+
+
+static const char *TAG = "example";
+#define PCNT_INPUT_SIG_IO   20 // Pulse Input GPIO
+
+
+
+#define EXAMPLE_PCNT_HIGH_LIMIT 20000
+#define EXAMPLE_PCNT_LOW_LIMIT  -1
+
+static volatile int cnt = 0;
+
+QueueHandle_t queue;
+pcnt_unit_handle_t pcnt_unit = NULL;
+
+static bool example_pcnt_on_reach(pcnt_unit_handle_t unit, const pcnt_watch_event_data_t *edata, void *user_ctx)
+{
+	cnt++;
+    BaseType_t high_task_wakeup;
+    QueueHandle_t queue = (QueueHandle_t)user_ctx;
+    // send event data to queue, from this interrupt callback
+    xQueueSendFromISR(queue, &(edata->watch_point_value), &high_task_wakeup);
+    return (high_task_wakeup == pdTRUE);
+}
+
+void pcnt(void)
+{
+    ESP_LOGI(TAG, "install pcnt unit");
+    pcnt_unit_config_t unit_config = {
+        .high_limit = EXAMPLE_PCNT_HIGH_LIMIT,
+        .low_limit = EXAMPLE_PCNT_LOW_LIMIT,
+    };
+    ESP_ERROR_CHECK(pcnt_new_unit(&unit_config, &pcnt_unit));
+
+#if 0
+    ESP_LOGI(TAG, "set glitch filter");
+    pcnt_glitch_filter_config_t filter_config = {
+        .max_glitch_ns = 1000,
+    };
+    ESP_ERROR_CHECK(pcnt_unit_set_glitch_filter(pcnt_unit, &filter_config));
+#endif
+
+    ESP_LOGI(TAG, "install pcnt channel");
+    pcnt_chan_config_t chan_a_config = {
+        .edge_gpio_num = PCNT_INPUT_SIG_IO,
+        .level_gpio_num = -1
+    };
+    pcnt_channel_handle_t pcnt_chan_a = NULL;
+    ESP_ERROR_CHECK(pcnt_new_channel(pcnt_unit, &chan_a_config, &pcnt_chan_a));
+
+    ESP_LOGI(TAG, "set edge action for pcnt channel");
+    ESP_ERROR_CHECK(pcnt_channel_set_edge_action(pcnt_chan_a, PCNT_CHANNEL_EDGE_ACTION_INCREASE, PCNT_CHANNEL_EDGE_ACTION_HOLD));
+
+    ESP_LOGI(TAG, "add watch point and register callback");
+    ESP_ERROR_CHECK(pcnt_unit_add_watch_point(pcnt_unit, EXAMPLE_PCNT_HIGH_LIMIT));
+    pcnt_event_callbacks_t cbs = {
+        .on_reach = example_pcnt_on_reach,
+    };
+    QueueHandle_t queue = xQueueCreate(10, sizeof(int));
+    ESP_ERROR_CHECK(pcnt_unit_register_event_callbacks(pcnt_unit, &cbs, queue));
+
+    ESP_LOGI(TAG, "enable pcnt unit");
+    ESP_ERROR_CHECK(pcnt_unit_enable(pcnt_unit));
+    ESP_LOGI(TAG, "clear pcnt unit");
+    ESP_ERROR_CHECK(pcnt_unit_clear_count(pcnt_unit));
+    ESP_LOGI(TAG, "start pcnt unit");
+    ESP_ERROR_CHECK(pcnt_unit_start(pcnt_unit));
+}
+
+
 
 
 // Define the configuration parameters for the LEDC
@@ -42,9 +113,21 @@ void init_ledc_square_wave() {
 }
 
 void app_main() {
+  queue = xQueueCreate(10, sizeof(int));
     init_ledc_square_wave();
+	pcnt();
+    // Report counter value
+    int pulse_count = 0;
+    int event_count = 0;
     while (1) {
+        if (xQueueReceive(queue, &event_count, pdMS_TO_TICKS(1000))) {
+            ESP_LOGI(TAG, "Watch point event, count: %d", event_count);
+        } else {
+            ESP_ERROR_CHECK(pcnt_unit_get_count(pcnt_unit, &pulse_count));
+            ESP_LOGI(TAG, "Pulse count: %d", pulse_count);
+        }
         vTaskDelay(pdMS_TO_TICKS(1000));  // Delay for 1 second
+		printf("cnt is %d\n", cnt);
     }
 }
 #else
