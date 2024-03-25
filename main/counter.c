@@ -20,7 +20,8 @@
 
 static volatile int trigger_cnt = 0;
 static volatile int overflow_cnt = 0;
-int count_value;
+
+QueueHandle_t count_queue;
 
 pcnt_unit_handle_t pcnt_unit = NULL;
 pcnt_channel_handle_t pcnt_chan_a = NULL;
@@ -33,7 +34,7 @@ enum e_State {
 	COLLECT,
 } state = IDLE;
 
-const int loops = 5;
+const int loops = 10;
 int lc = 0;
 
 static void IRAM_ATTR one_pps_edge_handler(void* arg) {
@@ -56,9 +57,12 @@ static void IRAM_ATTR one_pps_edge_handler(void* arg) {
 				state = LOW_COUNT;
 			}
 		} else if (state == COLLECT) {
-			pcnt_unit_get_count(pcnt_unit, &count_value);
-			pcnt_unit_clear_count(pcnt_unit);
+			// ws high, now collecting value, next high start counting, hold while low
 			pcnt_channel_set_level_action(pcnt_chan_a, PCNT_CHANNEL_LEVEL_ACTION_KEEP, PCNT_CHANNEL_LEVEL_ACTION_HOLD);
+			int count_value;
+            pcnt_unit_get_count(pcnt_unit, &count_value);
+            pcnt_unit_clear_count(pcnt_unit);
+            xQueueSendFromISR(count_queue, &count_value, NULL);
 			state = LOW;
 		}
     } else { // now high
@@ -107,6 +111,9 @@ void counter_init(void) {
 	};
 	gpio_config(&io_conf);
 	gpio_isr_handler_add(PCNT_INPUT_SIG_TRIGGER, one_pps_edge_handler, NULL);
+
+	count_queue = xQueueCreate(10, sizeof(int));
+	assert(count_queue != NULL);
 }
 
 
@@ -121,6 +128,9 @@ void app_main() {
 
     while (1) {
         vTaskDelay(pdMS_TO_TICKS(300)); 
-		printf("triggers %d overflows %d counter %d state %d\n", trigger_cnt, overflow_cnt, count_value, state); 
+		int count_value;
+        if (xQueueReceive(count_queue, &count_value, pdMS_TO_TICKS(300)) == pdPASS) {
+			printf("triggers %d overflows %d counter %d state %d\n", trigger_cnt, overflow_cnt, count_value, state); 
+        }
     }
 }
