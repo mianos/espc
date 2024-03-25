@@ -32,28 +32,34 @@ enum e_State {
 	LOW_COUNT
 } state = IDLE;
 
+const int loops = 5;
+int lc = 0;
+
 static void IRAM_ATTR one_pps_edge_handler(void* arg) {
     trigger_cnt++;
     int level = gpio_get_level(PCNT_INPUT_SIG_TRIGGER);
     if (level == 0) {	// now low
        	if (state == IDLE) {
 			// hit low, when high KEEP (count), when low HOLD (don't count until high)
-			pcnt_unit_get_count(pcnt_unit, &count_value);
 			pcnt_channel_set_level_action(pcnt_chan_a, PCNT_CHANNEL_LEVEL_ACTION_KEEP, PCNT_CHANNEL_LEVEL_ACTION_HOLD);
 			state = LOW;
 		} else if (state == HIGH) {
 			// in low, state was high
 			// when high, hold, keep counting while low
-			pcnt_unit_get_count(pcnt_unit, &count_value);
-			pcnt_channel_set_level_action(pcnt_chan_a, PCNT_CHANNEL_LEVEL_ACTION_HOLD, PCNT_CHANNEL_LEVEL_ACTION_KEEP);
-			state = LOW_COUNT;
+			if (++lc < loops) {
+				pcnt_channel_set_level_action(pcnt_chan_a, PCNT_CHANNEL_LEVEL_ACTION_KEEP, PCNT_CHANNEL_LEVEL_ACTION_KEEP);
+				state = LOW;
+			} else {
+				lc = 0;
+				pcnt_channel_set_level_action(pcnt_chan_a, PCNT_CHANNEL_LEVEL_ACTION_HOLD, PCNT_CHANNEL_LEVEL_ACTION_KEEP);
+				state = LOW_COUNT;
+			}
 		}
     } else { // now high
 		// got high in low state
        if (state == LOW) {
 		   // in high, keep  counting, when low, keep counting
 			pcnt_channel_set_level_action(pcnt_chan_a, PCNT_CHANNEL_LEVEL_ACTION_KEEP, PCNT_CHANNEL_LEVEL_ACTION_KEEP);
-			pcnt_unit_get_count(pcnt_unit, &count_value);
 			state = HIGH;
 		} else if (state == LOW_COUNT) { // high after low count
 			// stop counting
