@@ -29,7 +29,8 @@ enum e_State {
 	IDLE,
 	LOW,
 	HIGH, 
-	LOW_COUNT
+	LOW_COUNT,
+	COLLECT,
 } state = IDLE;
 
 const int loops = 5;
@@ -54,6 +55,11 @@ static void IRAM_ATTR one_pps_edge_handler(void* arg) {
 				pcnt_channel_set_level_action(pcnt_chan_a, PCNT_CHANNEL_LEVEL_ACTION_HOLD, PCNT_CHANNEL_LEVEL_ACTION_KEEP);
 				state = LOW_COUNT;
 			}
+		} else if (state == COLLECT) {
+			pcnt_unit_get_count(pcnt_unit, &count_value);
+			pcnt_unit_clear_count(pcnt_unit);
+			pcnt_channel_set_level_action(pcnt_chan_a, PCNT_CHANNEL_LEVEL_ACTION_KEEP, PCNT_CHANNEL_LEVEL_ACTION_HOLD);
+			state = LOW;
 		}
     } else { // now high
 		// got high in low state
@@ -65,9 +71,7 @@ static void IRAM_ATTR one_pps_edge_handler(void* arg) {
 			// stop counting
 			// from LOW, high state will be hold, but low state will be KEEP, and counting so hold all
 			pcnt_channel_set_level_action(pcnt_chan_a, PCNT_CHANNEL_LEVEL_ACTION_HOLD, PCNT_CHANNEL_LEVEL_ACTION_HOLD);
-			pcnt_unit_get_count(pcnt_unit, &count_value);
-			pcnt_unit_clear_count(pcnt_unit);
-			state = IDLE;
+			state = COLLECT;
 		}
     }
 }
