@@ -3,6 +3,7 @@
 #include <string>
 
 #include "wifimanager.h"
+#include "web.h"
 
 extern "C" void counter_init();
 extern "C" void init_ledc_square_wave(void);
@@ -32,6 +33,8 @@ extern "C" void app_main() {
     // Your application logic here
     // For example, you might enter a main loop, start other tasks,
     // or wait for events.
+	 WebServer webServer(80); // Specify the web server port
+    webServer.start();
 	printf("started\n");
     while (true) {
         vTaskDelay(pdMS_TO_TICKS(1000)); 
