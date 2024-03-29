@@ -8,18 +8,16 @@
 #include "esp_err.h"
 #include "esp_timer.h"
 #include "driver/gpio_etm.h"
+#include "nvs_flash.h"
 
 
 // static const char *TAG = "counter";
 
-#define PCNT_INPUT_SIG_IO   20 // Pulse Input GPIO
-#define PCNT_INPUT_SIG_TRIGGER   GPIO_NUM_22 // Pulse Input GPIO
+#define PCNT_INPUT_SIG_IO   17 // Pulse Input GPIO
+#define PCNT_INPUT_SIG_TRIGGER   GPIO_NUM_15 // Pulse Input GPIO
 
 #define PCNT_HIGH_LIMIT 20000
 #define PCNT_LOW_LIMIT  -1
-
-static volatile int trigger_cnt = 0;
-static volatile int overflow_cnt = 0;
 
 QueueHandle_t count_queue;
 
@@ -38,7 +36,6 @@ const int loops = 10;
 int lc = 0;
 
 static void IRAM_ATTR one_pps_edge_handler(void* arg) {
-    trigger_cnt++;
     int level = gpio_get_level(PCNT_INPUT_SIG_TRIGGER);
     if (level == 0) {	// now low
        	if (state == IDLE) {
@@ -91,17 +88,17 @@ void counter_init(void) {
 
     pcnt_chan_config_t chan_a_config = {
         .edge_gpio_num = PCNT_INPUT_SIG_IO,
-		.level_gpio_num = GPIO_NUM_22
+		.level_gpio_num = PCNT_INPUT_SIG_TRIGGER
     };
     ESP_ERROR_CHECK(pcnt_new_channel(pcnt_unit, &chan_a_config, &pcnt_chan_a));
 	// when counter is reached call internally set up ISR
     ESP_ERROR_CHECK(pcnt_unit_add_watch_point(pcnt_unit, PCNT_HIGH_LIMIT));
 	ESP_ERROR_CHECK(pcnt_unit_enable(pcnt_unit));
-	pcnt_channel_set_edge_action(pcnt_chan_a, PCNT_CHANNEL_EDGE_ACTION_INCREASE, PCNT_CHANNEL_EDGE_ACTION_HOLD);
+	ESP_ERROR_CHECK(pcnt_channel_set_edge_action(pcnt_chan_a, PCNT_CHANNEL_EDGE_ACTION_INCREASE, PCNT_CHANNEL_EDGE_ACTION_HOLD));
 	ESP_ERROR_CHECK(pcnt_unit_clear_count(pcnt_unit));
 	ESP_ERROR_CHECK(pcnt_unit_start(pcnt_unit));
 
-	gpio_install_isr_service(0);
+	ESP_ERROR_CHECK(gpio_install_isr_service(0));
 	gpio_config_t io_conf = {
 		.intr_type = GPIO_INTR_ANYEDGE,
 		.mode = GPIO_MODE_INPUT,
@@ -109,28 +106,16 @@ void counter_init(void) {
 		.pull_up_en = GPIO_PULLUP_DISABLE,
 		.pull_down_en = GPIO_PULLDOWN_DISABLE
 	};
-	gpio_config(&io_conf);
-	gpio_isr_handler_add(PCNT_INPUT_SIG_TRIGGER, one_pps_edge_handler, NULL);
+	ESP_ERROR_CHECK(gpio_config(&io_conf));
+	ESP_ERROR_CHECK(gpio_isr_handler_add(PCNT_INPUT_SIG_TRIGGER, one_pps_edge_handler, NULL));
 
 	count_queue = xQueueCreate(10, sizeof(int));
 	assert(count_queue != NULL);
 }
 
-
-void app_main() {
-
-	extern void init_ledc_square_wave();
-	extern void start_pulse_timer();
-
-    init_ledc_square_wave();
-    start_pulse_timer();
-	counter_init();
-
-    while (1) {
-        vTaskDelay(pdMS_TO_TICKS(300)); 
-		int count_value;
-        if (xQueueReceive(count_queue, &count_value, pdMS_TO_TICKS(300)) == pdPASS) {
-			printf("triggers %d overflows %d counter %d state %d\n", trigger_cnt, overflow_cnt, count_value, state); 
-        }
-    }
+void display_count(void) {
+	int count_value;
+	if (xQueueReceive(count_queue, &count_value, pdMS_TO_TICKS(300)) == pdPASS) {
+		printf("counter %d\n", count_value); 
+	}
 }

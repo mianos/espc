@@ -1,2 +1,3 @@
-idf_component_register(SRCS counter.c test_10.c test_pulse.c
-                       INCLUDE_DIRS "")
+# idf_component_register(SRCS "main.cpp" "wifimanager.cpp" "nv.cpp" "smartconfig_main.c nv.hpp"
+idf_component_register(SRCS main.cpp wifimanager.cpp nv.cpp counter.c test_10.c
+                    INCLUDE_DIRS ".")
