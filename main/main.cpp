@@ -4,6 +4,7 @@
 
 #include "wifimanager.h"
 #include "web.h"
+#include "gps.h"
 
 extern "C" void counter_init();
 extern "C" void init_ledc_square_wave(void);
@@ -13,29 +14,16 @@ extern "C" void app_main() {
     // Initialize the WiFiManager
 	WiFiManager wifiManager;
     wifiManager.initializeWiFi();
+//    ESP_LOGI("app_main", "Clearing stored WiFi credentials...");    wifiManager.clearWiFiCredentials();
 
 	init_ledc_square_wave();
 	counter_init();
-    // Example usage: Uncomment the following lines if you want to clear
-    // stored WiFi credentials for testing or before starting SmartConfig.
-    // Note: Be sure to comment these back or remove after testing to prevent
-    // clearing credentials on every device restart.
-    //
-    ESP_LOGI("app_main", "Clearing stored WiFi credentials...");
-//    wifiManager.clearWiFiCredentials();
-    // After clearing credentials, the device will need to be provisioned again
-    // via SmartConfig or manually setting the credentials.
-
-    // At this point, the WiFiManager will attempt to connect using stored
-    // credentials. If no credentials are stored, it will fall back to
-    // SmartConfig to provision the device.
-
-    // Your application logic here
-    // For example, you might enter a main loop, start other tasks,
-    // or wait for events.
-	 WebServer webServer(80); // Specify the web server port
+	WebServer webServer(80); // Specify the web server port
     webServer.start();
 	printf("started\n");
+	GPSReader gpsReader(UART_NUM_1, 12, 13, 9600);
+    gpsReader.initialize();
+    gpsReader.startReadLoopTask();
     while (true) {
         vTaskDelay(pdMS_TO_TICKS(1000)); 
 		display_count();

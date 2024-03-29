@@ -1,2 +1,2 @@
-idf_component_register(SRCS main.cpp wifimanager.cpp nv.cpp counter.c test_10.c web.cpp
+idf_component_register(SRCS main.cpp wifimanager.cpp nv.cpp counter.c test_10.c web.cpp gps.cpp
                     INCLUDE_DIRS ".")
