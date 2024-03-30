@@ -1,20 +1,26 @@
 #pragma once
 
 #include "driver/uart.h"
-#include "esp_log.h"
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
+#include "nmea.h" // Make sure this is included for the NMEADecoder
 
 class GPSReader {
 public:
-    GPSReader(uart_port_t uart_num, int tx_pin, int rx_pin, int baud_rate);
+    GPSReader(uart_port_t uartPort, int txPin, int rxPin, int baudRate);
     ~GPSReader();
     void initialize();
-    void readLoop();
-	void startReadLoopTask();
+    void startReadLoopTask();
+
 private:
-    uart_port_t uart_num;
-    int tx_pin;
-    int rx_pin;
-    int baud_rate;
-    static constexpr size_t buffer_size = 1024; // Adjust buffer size as needed
-	static void readLoopTask(void *pvParameters);
+    uart_port_t uartPort;
+    int txPin;
+    int rxPin;
+    int baudRate;
+    static constexpr size_t bufferSize = 1024; // Adjust based on expected sentence lengths
+    NMEADecoder decoder; // Instance of the NMEADecoder for parsing
+
+    static void readLoopTask(void* pvParameters);
+    void readLoop();
 };
+
