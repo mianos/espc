@@ -34,21 +34,44 @@ void GPSReader::readLoopTask(void* pvParameters) {
     reader->readLoop();
 }
 
+
+
 void GPSReader::readLoop() {
     uint8_t* data = new uint8_t[bufferSize];
     while (true) {
-        // Read data from UART port
         int len = uart_read_bytes(uartPort, data, bufferSize - 1, pdMS_TO_TICKS(100));
-        if (len > 0) {
-            data[len] = '\0'; // Null-terminate the received data to ensure it's a valid C-style string
-            
-            // Convert the read bytes to a std::string
-            std::string receivedData(reinterpret_cast<char*>(data), len);
-            
-            // Pass the received NMEA sentence to the decoder
-            // The decoder will parse the sentence into fields and process it as configured
-            decoder.parseData(receivedData);
+        for (uint8_t* ptr = data; ptr < data + len; ++ptr) { // Note: Corrected 'length' to 'len'
+            auto result = decoder.consume(*ptr);
+            switch (result.type) {
+                case GNSSDecoder::ResultType::NMEA:
+                    if (auto nmeaDecoder = *std::get<std::optional<NMEADecoder*>>(result.data)) {
+                        ESP_LOGI("GPSReader", "topic %s", nmeaDecoder->getTopic().c_str());
+                        std::vector<std::string> items = nmeaDecoder->getItems();
+                        std::string combinedItems;
+                        for (auto it = items.begin(); it != items.end(); ++it) {
+                            combinedItems += *it;
+                            if (it != items.end() - 1) {
+                                combinedItems += ", ";
+                            }
+                        }
+                        ESP_LOGI("GPSReader", "%s", combinedItems.c_str());
+                        ESP_LOGI("GPSReader", "result %s", nmeaDecoder->getMessage().c_str());
+                    }
+                    break;
+                case GNSSDecoder::ResultType::UBX:
+                    {
+                        auto ubxDecoder = *std::get<std::optional<UBXDecoder*>>(result.data);
+                        ESP_LOGI("GPSReader", "UBX");
+                        // Use ubxDecoder to access the UBXDecoder object
+                    }
+                    break;
+                case GNSSDecoder::ResultType::NO_RESULT:
+                    // Optionally log that no result was processed yet
+                    //ESP_LOGI("GPSReader", "No result processed yet.");
+                    break;
+            }
         }
     }
     delete[] data; // Cleanup, though this line is technically unreachable
 }
+

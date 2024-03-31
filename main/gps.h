@@ -3,7 +3,7 @@
 #include "driver/uart.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
-#include "nmea.h" // Make sure this is included for the NMEADecoder
+#include "GNSSDecoder.h" // Make sure this is included for the NMEADecoder
 
 class GPSReader {
 public:
@@ -18,7 +18,7 @@ private:
     int rxPin;
     int baudRate;
     static constexpr size_t bufferSize = 1024; // Adjust based on expected sentence lengths
-    NMEADecoder decoder; // Instance of the NMEADecoder for parsing
+    GNSSDecoder decoder; // Instance of the NMEADecoder for parsing
 
     static void readLoopTask(void* pvParameters);
     void readLoop();
