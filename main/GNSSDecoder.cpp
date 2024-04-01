@@ -22,14 +22,12 @@ GNSSDecoder::Result GNSSDecoder::consume(unsigned char c) {
             break;
         case State::DecodeNMEA:
             if (nmeaDecoder.consume(c)) {
-                std::cout << "nmea message" << std::endl;
                 state = State::WaitForStart;
                 return {ResultType::NMEA, std::make_optional(&nmeaDecoder)};
             }
             break;
         case State::DecodeUBX:
             if (ubxDecoder.consume(c)) {
-                std::cout << "UBX message" << std::endl;
                 state = State::WaitForStart;
                 return {ResultType::UBX, std::make_optional(&ubxDecoder)};
             }

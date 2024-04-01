@@ -1,7 +1,7 @@
 #pragma once
 
 #include "NMEADecoder.h"
-#include "UBXDecoder.h"
+#include "UBXProtocol.h"
 #include <optional>
 #include <variant>
 
@@ -15,7 +15,7 @@ public:
 
     struct Result {
         ResultType type;
-        std::variant<std::optional<NMEADecoder*>, std::optional<UBXDecoder*>, std::monostate> data;
+        std::variant<std::optional<NMEADecoder*>, std::optional<UBXProtocol*>, std::monostate> data;
     };
 
 private:
@@ -23,7 +23,7 @@ private:
 
     State state;
     NMEADecoder nmeaDecoder;
-    UBXDecoder ubxDecoder;
+    UBXProtocol ubxDecoder;
 
     std::string nmeaMessage;
     std::string nmeaChecksum;

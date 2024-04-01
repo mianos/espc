@@ -1,8 +1,8 @@
 #include "esp_log.h"
-#include "UBXDecoder.h"
+#include "UBXProtocol.h"
 
 
-enum class UBXDecoder::State {
+enum class UBXProtocol::State {
     ReadSync1 = 0,
     ReadSync2 = 1,
     ReadClass = 2,
@@ -14,9 +14,9 @@ enum class UBXDecoder::State {
     ReadCK_B
 };
 
-UBXDecoder::UBXDecoder() : state(State::ReadSync1), length(0), ck_a(0), ck_b(0) {}
+UBXProtocol::UBXProtocol() : state(State::ReadSync1), length(0), ck_a(0), ck_b(0) {}
 
-bool UBXDecoder::consume(unsigned char c) {
+bool UBXProtocol::consume(unsigned char c) {
     switch (state) {
         case State::ReadSync1:
             if (c == 0xB5) {
@@ -95,10 +95,22 @@ bool UBXDecoder::consume(unsigned char c) {
     return false;
 }
 
-std::vector<uint8_t> UBXDecoder::getMessage() const {
+std::vector<uint8_t> UBXProtocol::getMessage() const {
     return message;
 }
 
-std::string UBXDecoder::getChecksum() const {
+std::string UBXProtocol::getChecksum() const {
     return std::string({static_cast<char>(ck_a), static_cast<char>(ck_b)});
+}
+
+
+void UBXProtocol::calculateChecksum(std::vector<uint8_t>& message) {
+    uint8_t ck_a = 0, ck_b = 0;
+    // Start checksum calculation from message class (skip sync chars)
+    for (size_t i = 2; i < message.size(); i++) {
+        ck_a += message[i];
+        ck_b += ck_a;
+    }
+    message.push_back(ck_a);
+    message.push_back(ck_b);
 }

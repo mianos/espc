@@ -11,6 +11,7 @@ public:
     ~GPSReader();
     void initialize();
     void startReadLoopTask();
+	void startPassThroughTask(); 
 
 private:
     uart_port_t uartPort;
@@ -22,5 +23,9 @@ private:
 
     static void readLoopTask(void* pvParameters);
     void readLoop();
+
+	static void passThroughTask(void* pvParameters);
+    void passThroughLoop(); 
+
 };
 

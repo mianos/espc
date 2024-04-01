@@ -4,7 +4,7 @@
 #include <cstdint>
 #include <string>
 
-class UBXDecoder {
+class UBXProtocol {
 private:
     enum class State;
 
@@ -14,8 +14,9 @@ private:
     uint8_t ck_a, ck_b;
 
 public:
-    UBXDecoder();
+    UBXProtocol();
     bool consume(unsigned char c);
     std::vector<uint8_t> getMessage() const;
     std::string getChecksum() const;
+    void calculateChecksum(std::vector<uint8_t>& message);
 };
