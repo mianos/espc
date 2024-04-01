@@ -6,6 +6,7 @@
 #include "wifimanager.h"
 #include "web.h"
 #include "gps.h"
+#include "QueueManagement.h"
 
 extern "C" void counter_init();
 extern "C" void init_ledc_square_wave(void);
@@ -28,6 +29,8 @@ void	serial_0_init() {
     uart_driver_install(UART_PORT, BUF_SIZE * 2, 0, 0, NULL, 0);
 }
 
+static QueueManager queueManager;
+
 extern "C" void app_main() {
     // Initialize the WiFiManager
 	WiFiManager wifiManager;
@@ -37,13 +40,13 @@ extern "C" void app_main() {
 	init_ledc_square_wave();
 	counter_init();
 	WebServer webServer(80); // Specify the web server port
-    webServer.start();
+    webServer.start(&queueManager);
 	ESP_LOGI("GPSReader", "started");
 	GPSReader gpsReader(UART_NUM_1, 2, 13, 9600);
     gpsReader.initialize();
-    // gpsReader.startReadLoopTask();
-	serial_0_init();
-    gpsReader.startPassThroughTask();
+    gpsReader.startReadLoopTask();
+	//serial_0_init();
+//    gpsReader.startPassThroughTask();
     while (true) {
         vTaskDelay(pdMS_TO_TICKS(1000)); 
 		display_count();

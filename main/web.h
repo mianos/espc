@@ -3,13 +3,14 @@
 #include <string>
 #include "esp_log.h"
 #include "esp_http_server.h"
+#include "QueueManagement.h"
 
 class WebServer {
 public:
     WebServer(uint16_t port);
     ~WebServer();
 
-    void start();
+    void start(QueueManager* queueManager);
     void stop();
 
 private:

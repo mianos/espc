@@ -116,6 +116,6 @@ void counter_init(void) {
 void display_count(void) {
 	int count_value;
 	if (xQueueReceive(count_queue, &count_value, pdMS_TO_TICKS(300)) == pdPASS) {
-		ESP_LOGI("Counter", "last  %d\n", count_value); 
+		ESP_LOGI("Counter", "last  %d", count_value); 
 	}
 }

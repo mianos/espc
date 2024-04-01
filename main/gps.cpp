@@ -50,7 +50,7 @@ void GPSReader::readLoop() {
     while (true) {
         int len = uart_read_bytes(uartPort, data, bufferSize - 1, pdMS_TO_TICKS(100));
         for (uint8_t* ptr = data; ptr < data + len; ++ptr) { // Note: Corrected 'length' to 'len'
-		   printf("%c", *ptr);
+		   // printf("%c", *ptr);
             auto result = decoder.consume(*ptr);
             switch (result.type) {
                 case GNSSDecoder::ResultType::NMEA:
