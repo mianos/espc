@@ -4,13 +4,19 @@
 #include "esp_log.h"
 #include "esp_http_server.h"
 #include "QueueManagement.h"
+#include "dac1220.h"
+
+struct WebContext {
+	QueueManager* queueManager;
+	DAC1220 *dac;
+};
 
 class WebServer {
 public:
     WebServer(uint16_t port);
     ~WebServer();
 
-    void start(QueueManager* queueManager);
+    void start(WebContext* ctx);
     void stop();
 
 private:

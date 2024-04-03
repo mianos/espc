@@ -12,6 +12,7 @@ idf_component_register(
         UBXProtocol.cpp
         UBXMessage.cpp
         QueueManagement.cpp
+        dac1220.cpp
     INCLUDE_DIRS
         "."
 )

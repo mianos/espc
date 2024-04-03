@@ -29,22 +29,26 @@ void	serial_0_init() {
     uart_driver_install(UART_PORT, BUF_SIZE * 2, 0, 0, NULL, 0);
 }
 
-static QueueManager queueManager;
 
 extern "C" void app_main() {
     // Initialize the WiFiManager
 	WiFiManager wifiManager;
+//    wifiManager.clearWiFiCredentials();
     wifiManager.initializeWiFi();
-//    ESP_LOGI("app_main", "Clearing stored WiFi credentials...");    wifiManager.clearWiFiCredentials();
 
 	init_ledc_square_wave();
 	counter_init();
 	WebServer webServer(80); // Specify the web server port
-    webServer.start(&queueManager);
+	QueueManager queueManager;
+	DAC1220 dac;
+	dac.begin();
+	WebContext wc{&queueManager, &dac};
+    webServer.start(&wc);
 	ESP_LOGI("GPSReader", "started");
 	GPSReader gpsReader(UART_NUM_1, 2, 13, 9600);
     gpsReader.initialize();
     gpsReader.startReadLoopTask();
+	esp_log_level_set("*", ESP_LOG_INFO);
 	//serial_0_init();
 //    gpsReader.startPassThroughTask();
     while (true) {
@@ -53,25 +57,3 @@ extern "C" void app_main() {
 	}
 }
 
-
-#if 0
-void app_main() {
-
-	extern void init_ledc_square_wave();
-	extern void start_pulse_timer();
-
-	ESP_ERROR_CHECK(nvs_flash_init());
-//	initialise_wifi();
-    init_ledc_square_wave();
-    start_pulse_timer();
-	counter_init();
-	
-    while (1) {
-        vTaskDelay(pdMS_TO_TICKS(1000)); 
-		int count_value;
-        if (xQueueReceive(count_queue, &count_value, pdMS_TO_TICKS(300)) == pdPASS) {
-			printf("counter %d\n", count_value); 
-        }
-    }
-}
-#endif
