@@ -1,7 +1,6 @@
 #pragma once
-
-#include <Arduino.h>
 #include "driver/spi_master.h"
+#include "driver/gpio.h"
 
 // derived from: https://github.com/BoraE/C-SPI-Interface-to-DAC1220-DACs-on-Raspberry-Pi-Computers/blob/main/LICENSE
 
@@ -9,12 +8,17 @@ class DAC1220 {
 public:
     enum BinMode {StraightBinary, TwosCompliment} bin_mode;
 
-    DAC1220(BinMode bin_mode=StraightBinary, int sckPin = 25, int misoPin = 27, int mosiPin = 26, int csPin = 33, uint32_t frequency = 10000);
+    DAC1220(BinMode bin_mode=StraightBinary,
+			gpio_num_t sckPin = GPIO_NUM_6,
+			gpio_num_t misoPin = GPIO_NUM_NC,
+			gpio_num_t mosiPin = GPIO_NUM_7,
+			gpio_num_t csPin = GPIO_NUM_11,
+			uint32_t frequency = 10000);
     void begin();
     void reset_all();
 
 private:
-    int sckPin, misoPin, mosiPin, csPin;  // Pin assignments
+    gpio_num_t sckPin, misoPin, mosiPin, csPin;  // Pin assignments
     uint32_t frequency;                   // SPI frequency
     spi_device_handle_t spi;              // SPI device handle
     // Voltage reference
@@ -108,4 +112,3 @@ public:
 //        write24(DAC_UPDATE_ALL);
     }
 };
-

@@ -20,7 +20,7 @@ void GPSReader::initialize() {
     uartConfig.stop_bits = UART_STOP_BITS_1;
     uartConfig.flow_ctrl = UART_HW_FLOWCTRL_DISABLE;
     uartConfig.rx_flow_ctrl_thresh = 122;
-    uartConfig.source_clk = UART_SCLK_APB;
+    uartConfig.source_clk = UART_SCLK_DEFAULT;
 
     uart_param_config(uartPort, &uartConfig);
 //    uart_set_pin(uartPort, txPin, rxPin, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE);

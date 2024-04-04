@@ -23,7 +23,7 @@ void	serial_0_init() {
     uart_config.parity = UART_PARITY_DISABLE;
     uart_config.stop_bits = UART_STOP_BITS_1;
     uart_config.flow_ctrl = UART_HW_FLOWCTRL_DISABLE;
-    uart_config.source_clk = UART_SCLK_APB;
+    uart_config.source_clk = UART_SCLK_DEFAULT;
     uart_param_config(UART_PORT, &uart_config);
     uart_set_pin(UART_PORT, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE);
     uart_driver_install(UART_PORT, BUF_SIZE * 2, 0, 0, NULL, 0);
@@ -36,8 +36,8 @@ extern "C" void app_main() {
 //    wifiManager.clearWiFiCredentials();
     wifiManager.initializeWiFi();
 
-	init_ledc_square_wave();
-	counter_init();
+//	init_ledc_square_wave();
+//	counter_init();
 	WebServer webServer(80); // Specify the web server port
 	QueueManager queueManager;
 	DAC1220 dac;
@@ -45,15 +45,15 @@ extern "C" void app_main() {
 	WebContext wc{&queueManager, &dac};
     webServer.start(&wc);
 	ESP_LOGI("GPSReader", "started");
-	GPSReader gpsReader(UART_NUM_1, 2, 13, 9600);
-    gpsReader.initialize();
-    gpsReader.startReadLoopTask();
+//	GPSReader gpsReader(UART_NUM_1, 2, 13, 9600);
+//    gpsReader.initialize();
+//    gpsReader.startReadLoopTask();
 	esp_log_level_set("*", ESP_LOG_INFO);
 	//serial_0_init();
 //    gpsReader.startPassThroughTask();
     while (true) {
         vTaskDelay(pdMS_TO_TICKS(1000)); 
-		display_count();
+//		display_count();
 	}
 }
 

@@ -1,11 +1,17 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
-#include "dac1220.h"
 #include "driver/spi_common.h"
-#include "driver/spi_master.h"
+#include "esp_log.h"
 #include "rom/ets_sys.h"
+#include "driver/gpio.h"
+#include <stdio.h>
+#include <cstring>
 
-DAC1220::DAC1220(BinMode bin_mode, int sck, int miso, int mosi, int cs, uint32_t freq)
+#include "dac1220.h"
+
+#define TAG "DAC1220"
+
+DAC1220::DAC1220(BinMode bin_mode, gpio_num_t sck, gpio_num_t miso, gpio_num_t mosi, gpio_num_t cs, uint32_t freq)
     : bin_mode(bin_mode), sckPin(sck), misoPin(miso), mosiPin(mosi), csPin(cs), frequency(freq) {
 }
 
@@ -16,6 +22,69 @@ void DAC1220::set_bin_mode(BinMode bin_mode) {
      cmr &= ~(1 << CMR_DF);  // clear the bit
   }
   set_command_register(cmr);
+}
+
+void DAC1220::reset_all() {
+#if 1
+	printf("=========== gpio?\n");
+	// Ensure proper initialization of the GPIO
+	gpio_reset_pin(GPIO_NUM_10);
+	esp_err_t gpio_set_direction_result = gpio_set_direction(GPIO_NUM_10, GPIO_MODE_OUTPUT);
+	if (gpio_set_direction_result != ESP_OK) {
+		printf("Failed to set GPIO direction: %d\n", gpio_set_direction_result);
+	}
+
+	// Set GPIO level to HIGH
+	esp_err_t gpio_set_level_high_result = gpio_set_level(GPIO_NUM_10, 1);
+	if (gpio_set_level_high_result != ESP_OK) {
+		printf("Failed to set GPIO level to HIGH: %d\n", gpio_set_level_high_result);
+	}
+    ets_delay_us(100); 
+
+	// Set GPIO level to LOW
+	esp_err_t gpio_set_level_low_result = gpio_set_level(GPIO_NUM_10, 0);
+	if (gpio_set_level_low_result != ESP_OK) {
+		printf("Failed to set GPIO level to LOW: %d\n", gpio_set_level_low_result);
+	}
+
+#endif
+    // Ensure SPI is not in use
+    spi_bus_free(SPI2_HOST);
+
+
+    // Configure CS pin as output
+	gpio_reset_pin(csPin);
+    gpio_set_direction(csPin, GPIO_MODE_OUTPUT);
+    gpio_set_level(csPin, 0); // Activate DAC1220 CS
+
+	gpio_reset_pin(sckPin);
+    gpio_set_direction(sckPin, GPIO_MODE_OUTPUT);
+
+
+//	gpio_dump_io_configuration(stdout, (1ULL << 7) | (1ULL << csPin) | (1ULL << sckPin));
+
+
+    // Reset sequence
+    gpio_set_level(sckPin, 0);
+    ets_delay_us(1000); // Third high period
+    // vTaskDelay(pdMS_TO_TICKS(1)); // Ensure the DAC1220 recognizes the low state
+    gpio_set_level(sckPin, 1);
+    ets_delay_us(240); // First high period
+    gpio_set_level(sckPin, 0);
+    ets_delay_us(5); // Short low period
+    gpio_set_level(sckPin, 1);
+    ets_delay_us(480); // Second high period
+    gpio_set_level(sckPin, 0);
+    ets_delay_us(5); // Short low period
+    gpio_set_level(sckPin, 1);
+    ets_delay_us(960); // Third high period
+    gpio_set_level(sckPin, 0);
+    // vTaskDelay(pdMS_TO_TICKS(1)); // Ensure the DAC1220 recognizes the low state again
+	 ESP_LOGI(TAG,"Reset wait on high");
+    ets_delay_us(1000); // Third high period
+	 ESP_LOGI(TAG,"Reset doneh");
+    // Deactivate CS
+    gpio_set_level(csPin, 1); // Deactivate DAC1220 CS
 }
 
 
@@ -31,74 +100,41 @@ void DAC1220::begin() {
   cmr |= (1 << CMR_RES);
   set_command_register(cmr);
 
-  Serial.printf("Setting mode %d\n", bin_mode);
+  ESP_LOGD(TAG,"Setting mode %d", bin_mode);
   set_bin_mode(bin_mode);
 
   // Calibrate with the output connected.
   calibrate(true);
 }
 
-void DAC1220::reset_all() {
-    // Ensure SPI is not in use
-    spi_bus_free(HSPI_HOST);
 
-	auto gcs = static_cast<gpio_num_t>(csPin);
-	auto gsk = static_cast<gpio_num_t>(sckPin);
-    // Configure CS pin as output
-    gpio_set_direction(gcs, GPIO_MODE_OUTPUT);
-    gpio_set_level(gcs, 0); // Activate DAC1220 CS
-
-    // Manually reset DAC by toggling SCK
-    gpio_set_direction(gsk, GPIO_MODE_OUTPUT);
-
-    // Reset sequence
-    gpio_set_level(gsk, 0);
-    ets_delay_us(1000); // Third high period
-    // vTaskDelay(pdMS_TO_TICKS(1)); // Ensure the DAC1220 recognizes the low state
-    gpio_set_level(gsk, 1);
-    ets_delay_us(240); // First high period
-    gpio_set_level(gsk, 0);
-    ets_delay_us(5); // Short low period
-    gpio_set_level(gsk, 1);
-    ets_delay_us(480); // Second high period
-    gpio_set_level(gsk, 0);
-    ets_delay_us(5); // Short low period
-    gpio_set_level(gsk, 1);
-    ets_delay_us(960); // Third high period
-    gpio_set_level(gsk, 0);
-    // vTaskDelay(pdMS_TO_TICKS(1)); // Ensure the DAC1220 recognizes the low state again
-    ets_delay_us(1000); // Third high period
-    // Deactivate CS
-    gpio_set_level(gcs, 1); // Deactivate DAC1220 CS
-}
 
 void DAC1220::initSPI() {
     spi_bus_config_t buscfg;
-	memset(&buscfg, 0, sizeof (spi_bus_config_t));
+    memset(&buscfg, 0, sizeof(buscfg));
     buscfg.mosi_io_num = mosiPin;
     buscfg.miso_io_num = misoPin;
     buscfg.sclk_io_num = sckPin;
     buscfg.quadwp_io_num = -1;
     buscfg.quadhd_io_num = -1;
 
+    spi_device_interface_config_t devcfg;
+    memset(&devcfg, 0, sizeof(devcfg));
+    devcfg.clock_speed_hz = frequency;
+    devcfg.mode = 1;
+    devcfg.spics_io_num = csPin;
+    devcfg.queue_size = 7;
+    devcfg.input_delay_ns = 20; //?
 
-    spi_device_interface_config_t spi_devcfg;
-    memset(&spi_devcfg, 0, sizeof(spi_device_interface_config_t));
-    spi_devcfg.mode = 1;
-    spi_devcfg.clock_speed_hz = static_cast<int>(frequency);
-    spi_devcfg.input_delay_ns = 20; //?
-    spi_devcfg.spics_io_num = csPin;
-    spi_devcfg.queue_size = 7;
-
-    esp_err_t init_bus_result = spi_bus_initialize(HSPI_HOST, &buscfg, SPI_DMA_CH_AUTO);
-    if (init_bus_result != ESP_OK) {
-        Serial.printf("spi bus init fail\n");
+    esp_err_t ret;
+    ret = spi_bus_initialize(SPI2_HOST, &buscfg, SPI_DMA_CH_AUTO);
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to initialize SPI bus: %s", esp_err_to_name(ret));
     }
 
-    esp_err_t add_device_result = spi_bus_add_device(HSPI_HOST, &spi_devcfg, &spi);
-    if (add_device_result != ESP_OK) {
-        Serial.printf("spi bus add  device fail\n");
-        // Handle error
+    ret = spi_bus_add_device(SPI2_HOST, &devcfg, &spi);
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to add SPI device: %s", esp_err_to_name(ret));
     }
 }
 
@@ -115,23 +151,33 @@ void DAC1220::calibrate(bool output_on) {
   set_command_register(cmr);
 
   // Start calibration, in a separate call.
-  //uint32_t cal_cmd = cmr | (CMR_MD_CAL << CMR_MD);
   uint32_t cal_cmd = (CMR_MD_CAL << CMR_MD);
-  Serial.printf("calibrate start\n");
+  ESP_LOGI(TAG, "calibrate start");
   set_command_register(cal_cmd);
-  // Wait 500 ms for calibration to complete.
-  delay(1000);
-  Serial.printf("calibrate end\n");
+  // Wait 500 ms for calibration to complete. Plus a but for good measure
+  vTaskDelay(pdMS_TO_TICKS(600));
+  ESP_LOGI(TAG, "calibrate end");
 }
 
 
-
 void printBinary(unsigned int value, int bitsCount = 8) {
+    char binaryStr[33]; // Maximum size needed for a 32-bit integer plus null terminator
+    int index = 0;
+
     for (int i = bitsCount - 1; i >= 0; --i) {
-        Serial.print((value >> i) & 1);
-        if (bitsCount == 3)
-          Serial.print(".");
+        // Append '0' or '1' to binaryStr
+        binaryStr[index++] = ((value >> i) & 1) ? '1' : '0';
+
+        // For formatting specific bit groups, adjust as necessary
+        if (bitsCount == 3 && i > 0) {
+            binaryStr[index++] = '.';
+        }
     }
+
+    binaryStr[index] = '\0'; // Null-terminate the string
+
+    // Log the binary string
+    ESP_LOGD(TAG, "%s", binaryStr);
 }
 
 void DAC1220::write_register(uint8_t cmd, uint32_t reg) {
@@ -159,15 +205,13 @@ void DAC1220::write_register(uint8_t cmd, uint32_t reg) {
             break;
     }
     for (auto ii = 0; ii < t.length / 8; ii++) {
-      Serial.printf("%2x ", buffer[ii]);
+      ESP_LOGD(TAG,"%2x ", buffer[ii]);
       printBinary(buffer[ii]);
-      Serial.printf(" ");
+      ESP_LOGD(TAG," ");
     }
-    Serial.printf("\n");
     t.tx_buffer = buffer; // Set the transmit buffer
     spi_device_transmit(spi, &t); // Transmit the transaction
 }
-
 
 
 
@@ -184,48 +228,20 @@ void DAC1220::set_value(uint32_t value) {
  * Generates output voltages specified as floating-point values between
  * 0 and 2*referenceVoltage volts.
  */
-#if 1
 void DAC1220::set_voltage(double value) {
   // Range check to prevent overflow.
   if (value < 0.0) {
-    Serial.printf("too low %g\n", value);
+    ESP_LOGE(TAG,"too low %g", value);
   } else if (value >= 2*referenceVoltage) {
-    Serial.printf("too high %g\n", value);
+    ESP_LOGE(TAG,"too high %g", value);
   }
   auto ratio = value / referenceVoltage;
   uint32_t count = ratio * 1048576; // 2^20
-  Serial.printf("value %g reference %g ratio %g count %d\n", value, referenceVoltage, ratio, count);
+  ESP_LOGD(TAG,"value %g reference %g ratio %g count %lu", value, referenceVoltage, ratio, count);
   set_value(count << 4);
-  // Assumes 20-bit, straight-binary code.
-  //uint32_t code = (uint32_t) ((double)0x80000 * (value / referenceVoltage)); // Table 8 in datasheet.
-//  uint32_t code = (uint32_t) ((double)0x80000 * (value / referenceVoltage)); // Table 8 in datasheet.
-//  set_value(code);
 }
-#endif
 
-#if 0
-void DAC1220::set_voltage(double voltage) {
-    uint32_t dacValue;
 
-    if (bin_mode == TwosCompliment) {
-        // Handling for two's complement mode
-        double scaleFactor = static_cast<double>(maxDacValue) / (2 * referenceVoltage);
-        dacValue = static_cast<uint32_t>((voltage + referenceVoltage) * scaleFactor);
-    } else {
-        // Handling for straight binary mode
-        if (voltage < 0 || voltage > referenceVoltage) {
-            Serial.printf("Voltage out of range\n");
-            return;
-        }
-        double scaleFactor = static_cast<double>(maxDacValue) / referenceVoltage;
-        dacValue = static_cast<uint32_t>(voltage * scaleFactor);
-    }
-
-    // Left-justify the DAC value for 20-bit to 24-bit alignment
-    dacValue <<= 4;
-    set_value(dacValue);
-}
-#endif
 void DAC1220::set_command_register(uint32_t cmr) {
   // Register value set as a right-aligned 16-bit number (xxxxFFFFh).
   uint8_t cmd = (CB_RW_W << CB_RW) | (CB_MB_2 << CB_MB) | (CMR_ADR << CB_ADR);
