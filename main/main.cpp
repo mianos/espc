@@ -45,9 +45,9 @@ extern "C" void app_main() {
 	WebContext wc{&queueManager, &dac};
     webServer.start(&wc);
 	ESP_LOGI("GPSReader", "started");
-//	GPSReader gpsReader(UART_NUM_1, 2, 13, 9600);
-//    gpsReader.initialize();
-//    gpsReader.startReadLoopTask();
+	GPSReader gpsReader(UART_NUM_1, 4, 5, 9600);
+    gpsReader.initialize();
+    gpsReader.startReadLoopTask();
 	esp_log_level_set("*", ESP_LOG_INFO);
 	//serial_0_init();
 //    gpsReader.startPassThroughTask();

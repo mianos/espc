@@ -50,12 +50,12 @@ void GPSReader::readLoop() {
     while (true) {
         int len = uart_read_bytes(uartPort, data, bufferSize - 1, pdMS_TO_TICKS(100));
         for (uint8_t* ptr = data; ptr < data + len; ++ptr) { // Note: Corrected 'length' to 'len'
-		   // printf("%c", *ptr);
+//		    printf("%c", *ptr);
             auto result = decoder.consume(*ptr);
             switch (result.type) {
                 case GNSSDecoder::ResultType::NMEA:
                     if (auto nmeaDecoder = *std::get<std::optional<NMEADecoder*>>(result.data)) {
-//                        ESP_LOGI("GPSReader", "topic %s", nmeaDecoder->getTopic().c_str());
+ //                       ESP_LOGI("GPSReader", "topic %s", nmeaDecoder->getTopic().c_str());
                         std::vector<std::string> items = nmeaDecoder->getItems();
                         std::string combinedItems;
                         for (auto it = items.begin(); it != items.end(); ++it) {
