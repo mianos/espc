@@ -37,7 +37,7 @@ extern "C" void app_main() {
     wifiManager.initializeWiFi();
 
 //	init_ledc_square_wave();
-//	counter_init();
+	counter_init();
 	WebServer webServer(80); // Specify the web server port
 	QueueManager queueManager;
 	DAC1220 dac;
@@ -52,8 +52,9 @@ extern "C" void app_main() {
 	//serial_0_init();
 //    gpsReader.startPassThroughTask();
     while (true) {
-        vTaskDelay(pdMS_TO_TICKS(1000)); 
-//		display_count();
+        vTaskDelay(pdMS_TO_TICKS(100)); 
+	
+		display_count();
 	}
 }
 

@@ -13,8 +13,8 @@
 
 // static const char *TAG = "counter";
 
-#define PCNT_INPUT_SIG_IO   17 // Pulse Input GPIO
-#define PCNT_INPUT_SIG_TRIGGER   GPIO_NUM_15 // Pulse Input GPIO
+#define PCNT_INPUT_SIG_IO   15 // 10Mhz Input
+#define PCNT_INPUT_SIG_TRIGGER   GPIO_NUM_10 // 1PPS Input GPIO
 
 #define PCNT_HIGH_LIMIT 20000
 #define PCNT_LOW_LIMIT  -1
@@ -32,7 +32,7 @@ enum e_State {
 	COLLECT,
 } state = IDLE;
 
-const int loops = 10;
+const int loops = 100;
 int lc = 0;
 
 static void IRAM_ATTR one_pps_edge_handler(void* arg) {

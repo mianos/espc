@@ -25,29 +25,6 @@ void DAC1220::set_bin_mode(BinMode bin_mode) {
 }
 
 void DAC1220::reset_all() {
-#if 1
-	printf("=========== gpio?\n");
-	// Ensure proper initialization of the GPIO
-	gpio_reset_pin(GPIO_NUM_10);
-	esp_err_t gpio_set_direction_result = gpio_set_direction(GPIO_NUM_10, GPIO_MODE_OUTPUT);
-	if (gpio_set_direction_result != ESP_OK) {
-		printf("Failed to set GPIO direction: %d\n", gpio_set_direction_result);
-	}
-
-	// Set GPIO level to HIGH
-	esp_err_t gpio_set_level_high_result = gpio_set_level(GPIO_NUM_10, 1);
-	if (gpio_set_level_high_result != ESP_OK) {
-		printf("Failed to set GPIO level to HIGH: %d\n", gpio_set_level_high_result);
-	}
-    ets_delay_us(100); 
-
-	// Set GPIO level to LOW
-	esp_err_t gpio_set_level_low_result = gpio_set_level(GPIO_NUM_10, 0);
-	if (gpio_set_level_low_result != ESP_OK) {
-		printf("Failed to set GPIO level to LOW: %d\n", gpio_set_level_low_result);
-	}
-
-#endif
     // Ensure SPI is not in use
     spi_bus_free(SPI2_HOST);
 

@@ -1,4 +1,5 @@
 #include <algorithm> 
+#include <regex>
 #include "esp_log.h"
 #include "cJSON.h"
 #include "UBXMessage.h"
@@ -16,11 +17,6 @@
     }
 
 static const char* TAG = "Web";
-
-#include "esp_log.h"
-#include "cJSON.h"
-#include <string>
-#include <memory>
 
 /**
  * Extracts a float value from a JSON payload for a specified field using C++ idioms.
@@ -57,17 +53,28 @@ esp_err_t extract_float_from_payload_cpp(httpd_req_t *req, const char *fieldName
     return ESP_OK;
 }
 
+std::string get_cookie_header(httpd_req_t *request) {
+    // Determine the length of the cookie header value
+    size_t header_value_length = httpd_req_get_hdr_value_len(request, "Cookie") + 1;
+    if (header_value_length > 1) {
+        // Allocate memory for the cookie header value
+        std::string cookie_value(header_value_length, '\0');
+        // Retrieve the cookie header value
+        if (httpd_req_get_hdr_value_str(request, "Cookie", cookie_value.data(), header_value_length) == ESP_OK) {
+            return cookie_value;
+        } else {
+            ESP_LOGE("HTTP", "Failed to get Cookie header");
+        }
+    } else {
+        ESP_LOGE("HTTP", "Cookie header not found");
+    }
+    return std::string(); // Return an empty string if the cookie is not found or an error occurred
+}
+
 httpd_uri_t WebServer::getUri = {
     .uri = "/getCounter",
     .method = HTTP_GET,
     .handler = getHandler,
-    .user_ctx = nullptr
-};
-
-httpd_uri_t WebServer::postUri = {
-    .uri = "/postValues",
-    .method = HTTP_POST,
-    .handler = postHandler,
     .user_ctx = nullptr
 };
 
@@ -135,8 +142,6 @@ void WebServer::start(WebContext *ctx) {
         httpd_register_uri_handler(server, &dac_post_uri);
 		getUri.user_ctx = ctx;
         httpd_register_uri_handler(server, &getUri);
-		postUri.user_ctx = ctx;
-        httpd_register_uri_handler(server, &postUri);
 		ubx_post_uri.user_ctx = ctx;
 		httpd_register_uri_handler(server, &ubx_post_uri);
     }
@@ -148,44 +153,45 @@ void WebServer::stop() {
     }
 }
 
-esp_err_t WebServer::getHandler(httpd_req_t *req) {
-    int counterValue = getHardwareCounterValue();
-    std::string response = "Counter Value: " + std::to_string(counterValue);
-    httpd_resp_send(req, response.c_str(), HTTPD_RESP_USE_STRLEN);
-    return ESP_OK;
+
+// Placeholder for getEnd function
+// Returns the next sequence number as an integer.
+int getEnd() {
+    // Implement this function to return the next sequence number.
+    // This is just a placeholder implementation.
+    static int counter = 0;
+    return ++counter;
 }
 
-esp_err_t WebServer::postHandler(httpd_req_t *req) {
-    char buf[100];
-    int ret, remaining = req->content_len;
+// Function to parse the sequence number from the cookie
+int parseSequenceNumber(const std::string& cookie) {
+    std::regex seqRegex("SeqNum=(\\d+)");
+    std::smatch matches;
+    if (std::regex_search(cookie, matches, seqRegex) && matches.size() > 1) {
+        return std::stoi(matches[1].str());
+    }
+    return -1; // Indicates no valid sequence number found
+}
 
-    while (remaining > 0) {
-        if ((ret = httpd_req_recv(req, buf, std::min(static_cast<size_t>(remaining), sizeof(buf)))) <= 0) {
-            if (ret == HTTPD_SOCK_ERR_TIMEOUT) {
-                continue;
-            }
-            return ESP_FAIL;
-        }
-        // Assume the received data is a plain integer for simplicity
-        int value = std::stoi(std::string(buf, ret));
-        setHardwareCounterValue(value);
-        remaining -= ret;
+esp_err_t WebServer::getHandler(httpd_req_t *req) {
+    std::string response = "This is a response with a sequence number cookie!";
+    auto cookie = get_cookie_header(req);
+    ESP_LOGI("WebServer", "Received cookie: '%s'", cookie.c_str());
+
+    // Parse the sequence number from the cookie
+    int seqNum = parseSequenceNumber(cookie);
+    if (seqNum < 0 || seqNum >= getEnd()) {
+        // No valid sequence number provided or it does not meet criteria
+        seqNum = getEnd(); // Get a new sequence number
     }
 
-    httpd_resp_send(req, "POST value updated", HTTPD_RESP_USE_STRLEN);
+    // Set the updated sequence number in the response cookie
+    std::string newCookie = "SeqNum=" + std::to_string(seqNum) + "; Path=/; Max-Age=3600";
+    httpd_resp_set_hdr(req, "Set-Cookie", newCookie.c_str());
+
+    // Send the response
+    httpd_resp_send(req, response.c_str(), HTTPD_RESP_USE_STRLEN);
+
     return ESP_OK;
 }
 
-static int value = 42;
-
-void WebServer::setHardwareCounterValue(int value) {
-    // Set the hardware counter to the specified value
-    // Placeholder for actual hardware interaction
-	printf("Setting %d\n", value);
-}
-
-int WebServer::getHardwareCounterValue() {
-    // Get the current value of the hardware counter
-    // Placeholder for actual hardware interaction
-    return value; // Example value
-}
