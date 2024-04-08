@@ -3,7 +3,7 @@ idf_component_register(
         main.cpp
         wifimanager.cpp
         nv.cpp
-        counter.c
+        Counter.cpp
         web.cpp
         gps.cpp
         GNSSDecoder.cpp
@@ -12,6 +12,7 @@ idf_component_register(
         UBXMessage.cpp
         QueueManagement.cpp
         dac1220.cpp
+        CircularBuffer.cpp
     INCLUDE_DIRS
         "."
 )

@@ -7,10 +7,8 @@
 #include "web.h"
 #include "gps.h"
 #include "QueueManagement.h"
-
-extern "C" void counter_init();
-extern "C" void init_ledc_square_wave(void);
-extern "C" void display_count(void);
+#include "Counter.h"
+#include "CircularBuffer.h"
 
 #define UART_PORT UART_NUM_0
 #define BUF_SIZE 1024
@@ -35,26 +33,26 @@ extern "C" void app_main() {
 	WiFiManager wifiManager;
 //    wifiManager.clearWiFiCredentials();
     wifiManager.initializeWiFi();
+	CircularBuffer dbuf;
 
-//	init_ledc_square_wave();
-	counter_init();
+	auto cnt = Counter();
 	WebServer webServer(80); // Specify the web server port
 	QueueManager queueManager;
 	DAC1220 dac;
 	dac.begin();
-	WebContext wc{&queueManager, &dac};
+	WebContext wc(&queueManager, &dac);
     webServer.start(&wc);
-	ESP_LOGI("GPSReader", "started");
-	GPSReader gpsReader(UART_NUM_1, 4, 5, 9600);
-    gpsReader.initialize();
-    gpsReader.startReadLoopTask();
-	esp_log_level_set("*", ESP_LOG_INFO);
+//	ESP_LOGI("GPSReader", "started");
+//	GPSReader gpsReader(UART_NUM_1, 4, 5, 9600);
+//    gpsReader.initialize();
+//    gpsReader.startReadLoopTask();
+//	esp_log_level_set("*", ESP_LOG_INFO);
 	//serial_0_init();
 //    gpsReader.startPassThroughTask();
     while (true) {
         vTaskDelay(pdMS_TO_TICKS(100)); 
 	
-		display_count();
+		cnt.process_count_queue();
 	}
 }
 

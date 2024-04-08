@@ -134,6 +134,7 @@ httpd_uri_t dac_post_uri = {
 };
 
 void WebServer::start(WebContext *ctx) {
+	ESP_LOGI(TAG, "Starting web server  on port %d", port);
     httpd_config_t config = HTTPD_DEFAULT_CONFIG();
     config.server_port = port;
 
