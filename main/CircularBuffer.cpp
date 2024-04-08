@@ -27,7 +27,7 @@ std::vector<MeasurementData> CircularBuffer::getMeasurementDatasGreaterThanSeque
         index = (index + 1) % capacity_;
     }
     if (result.empty() && sequence >= 0) {
-        result.push_back(MeasurementData(sequence));
+        result.push_back(MeasurementData{.sequenceNumber=sequence});
     }
     return result;
 }
