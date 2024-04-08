@@ -4,11 +4,13 @@
 #include "esp_log.h"
 #include "esp_http_server.h"
 #include "QueueManagement.h"
+#include "CircularBuffer.h"
 #include "dac1220.h"
 
 struct WebContext {
-	QueueManager* queueManager;
+	QueueManager* queueManager;	// queue for outgoing on demand UBX messages
 	DAC1220 *dac;
+	CircularBuffer& dbuf;
 };
 
 class WebServer {

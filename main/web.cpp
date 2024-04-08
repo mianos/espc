@@ -6,6 +6,7 @@
 #include "web.h"
 #include <string>
 #include <memory>
+#include "CircularBuffer.h"
 
 
 #define GET_CONTEXT(req, ctx) \

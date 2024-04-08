@@ -1,4 +1,3 @@
-#include "Counter.h"
 #include <stdio.h>
 #include <string.h>
 #include "esp_log.h"
@@ -7,13 +6,15 @@
 #include "driver/gpio_etm.h"
 #include "nvs_flash.h"
 
+#include "Counter.h"
+
 #define PCNT_INPUT_SIG_IO 15
 #define PCNT_INPUT_SIG_TRIGGER GPIO_NUM_10
 
 #define PCNT_HIGH_LIMIT 20000
 #define PCNT_LOW_LIMIT -1
 
-Counter::Counter() : state(IDLE), lc(0), sequenceNumber(0), loops(10) {
+Counter::Counter(CircularBuffer& dbuf) : dbuf(dbuf), state(IDLE), lc(0), sequenceNumber(0), loops(10) {
     pcnt_unit_config_t unit_config = {};
     unit_config.high_limit = PCNT_HIGH_LIMIT;
     unit_config.low_limit = PCNT_LOW_LIMIT;

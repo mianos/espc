@@ -1,6 +1,7 @@
 #pragma once
 #include <vector>
-#include "Counter.h"
+
+#include "Measurement.h"
 #include "Mutex.h"
 
 class CircularBuffer {

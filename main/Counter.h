@@ -1,25 +1,22 @@
 #pragma once
-
 #include "sdkconfig.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "driver/pulse_cnt.h"
 #include "driver/gpio_etm.h"
 #include "esp_timer.h"
+#include "Measurement.h"
+#include "CircularBuffer.h"
 
 
-struct MeasurementData {
-    int64_t timerCount = 0;
-    int counterValue = 0;
-    int sequenceNumber = 0;
-};
 
 class Counter {
 public:
-    Counter();
+    Counter(CircularBuffer& dbuf);
     void process_count_queue(void);
 
 private:
+	CircularBuffer& dbuf;
     enum e_State {
         IDLE,
         LOW,
