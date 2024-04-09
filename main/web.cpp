@@ -103,18 +103,29 @@ esp_err_t WebServer::getHandler(httpd_req_t *req) {
         httpd_resp_send_500(req);
         return ESP_FAIL;
     }
-    std::string response = "[";
-    auto datas = ctx->dbuf.getMeasurementDatasGreaterThanSequence(seqNum);
+    auto result = ctx->dbuf.getMeasurementDatasGreaterThanSequence(seqNum);
+
+	if (result->second) {
+		// Reset the sequence number
+		ESP_LOGI(TAG, "Resetting sequence number on account of cookie being %d", seqNum);
+		std::string newCookie = "SeqNum=0; Path=/; Max-Age=3600";
+		httpd_resp_set_hdr(req, "Set-Cookie", newCookie.c_str());
+		httpd_resp_set_status(req, "204 No Content");
+		httpd_resp_send(req, nullptr, 0); // No body
+		return ESP_OK;
+	}
+	auto datas = result->first;
 	if (!datas.empty()) {
-        seqNum = datas.back().sequenceNumber; // The last element holds the highest sequence number.
+        seqNum = datas.back().sequenceNumber + 1; // The last element holds the highest sequence number.
     }
+    std::string response = "[";
     for (size_t i = 0; i < datas.size(); ++i) {
         response += datas[i].toJsonString();
         if (i < datas.size() - 1) {
             response += ",";
         }
     }
-	response += "]"; // Close JSON array
+	response += "]";
     // Set the updated sequence number in the response cookie
     std::string newCookie = "SeqNum=" + std::to_string(seqNum) + "; Path=/; Max-Age=3600";
     httpd_resp_set_hdr(req, "Set-Cookie", newCookie.c_str());

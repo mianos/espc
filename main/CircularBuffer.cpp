@@ -1,5 +1,7 @@
 #include "CircularBuffer.h"
 
+//static const char* TAG = "CircularBuffer";
+
 CircularBuffer::CircularBuffer(size_t capacity)
     : capacity_(capacity), buffer_(capacity), head_(0), tail_(0), full_(false) {
 		 bufferMutex = xSemaphoreCreateMutex();
@@ -20,22 +22,33 @@ void CircularBuffer::putFront(const MeasurementData& item) {
     buffer_[head_] = item;
     head_ = (head_ + 1) % capacity_;
     full_ = head_ == tail_;
+    // Update the highest sequence number after adding a new item.
+    if (item.sequenceNumber > highestSequenceNumber) {
+        highestSequenceNumber = item.sequenceNumber;
+    }
 }
 
-std::vector<MeasurementData> CircularBuffer::getMeasurementDatasGreaterThanSequence(int sequence) {
-    MutexLock lock(bufferMutex);
 
+std::optional<std::pair<std::vector<MeasurementData>, bool>> CircularBuffer::getMeasurementDatasGreaterThanSequence(int sequence) {
+    MutexLock lock(bufferMutex);
     std::vector<MeasurementData> result;
+
+    // Check if the requested sequence is already higher than any known sequence number
+    if (sequence > highestSequenceNumber + 1) {
+        return std::make_optional(std::make_pair(result, true)); // Indicate the sequence is too high
+    }
+
     size_t count = size();
     size_t index = tail_;
     while (count--) {
-        if (buffer_[index].sequenceNumber > sequence) {
+        if (buffer_[index].sequenceNumber >= sequence) {
             result.push_back(buffer_[index]);
         }
         index = (index + 1) % capacity_;
     }
-    // Removed the conditional block that adds a default MeasurementData object
-    return result;
+
+    // The second part of the pair is false, indicating there are items with higher sequence numbers
+    return std::make_optional(std::make_pair(result, false));
 }
 
 
