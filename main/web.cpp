@@ -148,9 +148,6 @@ int parseSequenceNumber(const std::string& cookie) {
 esp_err_t WebServer::getHandler(httpd_req_t *req) {
 	GET_CONTEXT(req, ctx);
     auto cookie = get_cookie_header(req);
-    ESP_LOGI("WebServer", "Received cookie: '%s'", cookie.c_str());
-
-    // Parse the sequence number from the cookie
     int seqNum = parseSequenceNumber(cookie);
     if (seqNum < 0) {
 		ESP_LOGI("WebServer", "Invalid sequence number: %d", seqNum);

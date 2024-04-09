@@ -67,7 +67,6 @@ void IRAM_ATTR Counter::onePpsEdgeHandler(void* arg) {
                 pcnt_channel_set_level_action(inst->pcnt_chan_a, PCNT_CHANNEL_LEVEL_ACTION_KEEP, PCNT_CHANNEL_LEVEL_ACTION_KEEP);
                 inst->state = LOW;
             } else {
-                inst->lc = 0;
                 pcnt_channel_set_level_action(inst->pcnt_chan_a, PCNT_CHANNEL_LEVEL_ACTION_HOLD, PCNT_CHANNEL_LEVEL_ACTION_KEEP);
                 inst->state = LOW_COUNT;
             }
@@ -76,6 +75,8 @@ void IRAM_ATTR Counter::onePpsEdgeHandler(void* arg) {
             MeasurementData vv;
             vv.timerCount = esp_timer_get_time();
             vv.sequenceNumber = inst->sequenceNumber++;
+			vv.period = inst->lc; // inst->loops;
+			inst->lc = 0;
             pcnt_unit_get_count(inst->pcnt_unit, &vv.counterValue);
             pcnt_unit_clear_count(inst->pcnt_unit);
             xQueueSendFromISR(inst->measurement_queue, &vv, NULL);
