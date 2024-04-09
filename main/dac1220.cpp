@@ -37,14 +37,9 @@ void DAC1220::reset_all() {
 	gpio_reset_pin(sckPin);
     gpio_set_direction(sckPin, GPIO_MODE_OUTPUT);
 
-
-//	gpio_dump_io_configuration(stdout, (1ULL << 7) | (1ULL << csPin) | (1ULL << sckPin));
-
-
     // Reset sequence
     gpio_set_level(sckPin, 0);
     ets_delay_us(1000); // Third high period
-    // vTaskDelay(pdMS_TO_TICKS(1)); // Ensure the DAC1220 recognizes the low state
     gpio_set_level(sckPin, 1);
     ets_delay_us(240); // First high period
     gpio_set_level(sckPin, 0);
@@ -56,10 +51,7 @@ void DAC1220::reset_all() {
     gpio_set_level(sckPin, 1);
     ets_delay_us(960); // Third high period
     gpio_set_level(sckPin, 0);
-    // vTaskDelay(pdMS_TO_TICKS(1)); // Ensure the DAC1220 recognizes the low state again
-	 ESP_LOGI(TAG,"Reset wait on high");
     ets_delay_us(1000); // Third high period
-	 ESP_LOGI(TAG,"Reset doneh");
     // Deactivate CS
     gpio_set_level(csPin, 1); // Deactivate DAC1220 CS
 }
@@ -129,11 +121,9 @@ void DAC1220::calibrate(bool output_on) {
 
   // Start calibration, in a separate call.
   uint32_t cal_cmd = (CMR_MD_CAL << CMR_MD);
-  ESP_LOGI(TAG, "calibrate start");
   set_command_register(cal_cmd);
   // Wait 500 ms for calibration to complete. Plus a but for good measure
   vTaskDelay(pdMS_TO_TICKS(600));
-  ESP_LOGI(TAG, "calibrate end");
 }
 
 

@@ -15,6 +15,9 @@ public:
     Counter(CircularBuffer& dbuf);
     void process_count_queue(void);
 
+	void set_loops(int loops_) {
+		loops = loops_;
+	}
 private:
 	CircularBuffer& dbuf;
     enum e_State {

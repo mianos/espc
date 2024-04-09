@@ -38,7 +38,7 @@ extern "C" void app_main() {
 	QueueManager queueManager;
 	DAC1220 dac;
 	dac.begin();
-	WebContext wc(&queueManager, &dac, dbuf);
+	WebContext wc(&queueManager, &dac, dbuf, cnt);
 	WebServer webServer(wc); // Specify the web server port
 //	ESP_LOGI("GPSReader", "started");
 //	GPSReader gpsReader(UART_NUM_1, 4, 5, 9600);

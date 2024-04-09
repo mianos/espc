@@ -13,6 +13,7 @@ idf_component_register(
         QueueManagement.cpp
         dac1220.cpp
         CircularBuffer.cpp
+		PayloadExtractor.cpp
     INCLUDE_DIRS
         "."
 )
