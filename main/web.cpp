@@ -55,12 +55,9 @@ esp_err_t extract_float_from_payload_cpp(httpd_req_t *req, const char *fieldName
 }
 
 std::string get_cookie_header(httpd_req_t *request) {
-    // Determine the length of the cookie header value
     size_t header_value_length = httpd_req_get_hdr_value_len(request, "Cookie") + 1;
     if (header_value_length > 1) {
-        // Allocate memory for the cookie header value
         std::string cookie_value(header_value_length, '\0');
-        // Retrieve the cookie header value
         if (httpd_req_get_hdr_value_str(request, "Cookie", cookie_value.data(), header_value_length) == ESP_OK) {
             return cookie_value;
         } else {
@@ -128,12 +125,6 @@ httpd_uri_t dac_post_uri = {
 	.user_ctx = nullptr
 };
 
-void WebServer::stop() {
-    if (server) {
-        httpd_stop(server);
-    }
-}
-
 
 // Placeholder for getEnd function
 // Returns the next sequence number as an integer.
@@ -155,24 +146,34 @@ int parseSequenceNumber(const std::string& cookie) {
 }
 
 esp_err_t WebServer::getHandler(httpd_req_t *req) {
-    std::string response = "This is a response with a sequence number cookie!";
+	GET_CONTEXT(req, ctx);
     auto cookie = get_cookie_header(req);
     ESP_LOGI("WebServer", "Received cookie: '%s'", cookie.c_str());
 
     // Parse the sequence number from the cookie
     int seqNum = parseSequenceNumber(cookie);
-    if (seqNum < 0 || seqNum >= getEnd()) {
-        // No valid sequence number provided or it does not meet criteria
-        seqNum = getEnd(); // Get a new sequence number
+    if (seqNum < 0) {
+		ESP_LOGI("WebServer", "Invalid sequence number: %d", seqNum);
+        httpd_resp_send_500(req);
+        return ESP_FAIL;
     }
-
+    std::string response = "[";
+	
+    auto datas = ctx->dbuf.getMeasurementDatasGreaterThanSequence(seqNum);
+	if (!datas.empty()) {
+        seqNum = datas.back().sequenceNumber; // The last element holds the highest sequence number.
+    }
+    for (size_t i = 0; i < datas.size(); ++i) {
+        response += datas[i].toJsonString();
+        if (i < datas.size() - 1) {
+            response += ",";
+        }
+    }
+	response += "]"; // Close JSON array
     // Set the updated sequence number in the response cookie
     std::string newCookie = "SeqNum=" + std::to_string(seqNum) + "; Path=/; Max-Age=3600";
     httpd_resp_set_hdr(req, "Set-Cookie", newCookie.c_str());
-
-    // Send the response
     httpd_resp_send(req, response.c_str(), HTTPD_RESP_USE_STRLEN);
-
     return ESP_OK;
 }
 
@@ -190,8 +191,4 @@ WebServer::WebServer(WebContext& ctx, uint16_t port) : port(port) {
 		ubx_post_uri.user_ctx = &ctx;
 		httpd_register_uri_handler(server, &ubx_post_uri);
     }
-}
-
-WebServer::~WebServer() {
-    stop();
 }

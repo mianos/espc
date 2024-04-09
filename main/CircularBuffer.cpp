@@ -23,7 +23,7 @@ void CircularBuffer::putFront(const MeasurementData& item) {
 }
 
 std::vector<MeasurementData> CircularBuffer::getMeasurementDatasGreaterThanSequence(int sequence) {
-	MutexLock lock(bufferMutex);
+    MutexLock lock(bufferMutex);
 
     std::vector<MeasurementData> result;
     size_t count = size();
@@ -34,11 +34,10 @@ std::vector<MeasurementData> CircularBuffer::getMeasurementDatasGreaterThanSeque
         }
         index = (index + 1) % capacity_;
     }
-    if (result.empty() && sequence >= 0) {
-        result.push_back(MeasurementData{.sequenceNumber=sequence});
-    }
+    // Removed the conditional block that adds a default MeasurementData object
     return result;
 }
+
 
 size_t CircularBuffer::size() const {
     if (full_) return capacity_;

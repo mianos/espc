@@ -29,7 +29,6 @@ void	serial_0_init() {
 
 
 extern "C" void app_main() {
-    // Initialize the WiFiManager
 	WiFiManager wifiManager;
 //    wifiManager.clearWiFiCredentials();
     wifiManager.initializeWiFi();

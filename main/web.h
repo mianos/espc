@@ -16,8 +16,6 @@ struct WebContext {
 class WebServer {
 public:
     WebServer(WebContext &wc, uint16_t port=80);
-    ~WebServer();
-    void stop();
 
 private:
     httpd_handle_t server = nullptr;
