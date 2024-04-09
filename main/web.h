@@ -15,10 +15,8 @@ struct WebContext {
 
 class WebServer {
 public:
-    WebServer(uint16_t port);
+    WebServer(WebContext &wc, uint16_t port=80);
     ~WebServer();
-
-    void start(WebContext* ctx);
     void stop();
 
 private:

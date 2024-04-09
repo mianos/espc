@@ -50,6 +50,7 @@ Counter::Counter(CircularBuffer& dbuf) : dbuf(dbuf), state(IDLE), lc(0), sequenc
 void Counter::process_count_queue() {
     MeasurementData measurement;
     if (xQueueReceive(this->measurement_queue, &measurement, 0) == pdPASS) {
+		dbuf.putFront(measurement);
         ESP_LOGI("Counter", "last %d serial %d", measurement.counterValue, measurement.sequenceNumber);
     }
 }

@@ -79,12 +79,6 @@ httpd_uri_t WebServer::getUri = {
     .user_ctx = nullptr
 };
 
-WebServer::WebServer(uint16_t port) : port(port) {}
-
-WebServer::~WebServer() {
-    stop();
-}
-
 
 esp_err_t post_ubx_handler(httpd_req_t *req) {
     // Deserialize directly from the HTTP request
@@ -134,21 +128,6 @@ httpd_uri_t dac_post_uri = {
 	.user_ctx = nullptr
 };
 
-void WebServer::start(WebContext *ctx) {
-	ESP_LOGI(TAG, "Starting web server  on port %d", port);
-    httpd_config_t config = HTTPD_DEFAULT_CONFIG();
-    config.server_port = port;
-
-    if (httpd_start(&server, &config) == ESP_OK) {
-		dac_post_uri.user_ctx = ctx;
-        httpd_register_uri_handler(server, &dac_post_uri);
-		getUri.user_ctx = ctx;
-        httpd_register_uri_handler(server, &getUri);
-		ubx_post_uri.user_ctx = ctx;
-		httpd_register_uri_handler(server, &ubx_post_uri);
-    }
-}
-
 void WebServer::stop() {
     if (server) {
         httpd_stop(server);
@@ -197,3 +176,22 @@ esp_err_t WebServer::getHandler(httpd_req_t *req) {
     return ESP_OK;
 }
 
+
+WebServer::WebServer(WebContext& ctx, uint16_t port) : port(port) {
+	ESP_LOGI(TAG, "Starting web server  on port %d", port);
+    httpd_config_t config = HTTPD_DEFAULT_CONFIG();
+    config.server_port = port;
+
+    if (httpd_start(&server, &config) == ESP_OK) {
+		dac_post_uri.user_ctx = &ctx;
+        httpd_register_uri_handler(server, &dac_post_uri);
+		getUri.user_ctx = &ctx;
+        httpd_register_uri_handler(server, &getUri);
+		ubx_post_uri.user_ctx = &ctx;
+		httpd_register_uri_handler(server, &ubx_post_uri);
+    }
+}
+
+WebServer::~WebServer() {
+    stop();
+}

@@ -36,12 +36,11 @@ extern "C" void app_main() {
 	CircularBuffer dbuf;
 
 	auto cnt = Counter(dbuf);
-	WebServer webServer(80); // Specify the web server port
 	QueueManager queueManager;
 	DAC1220 dac;
 	dac.begin();
 	WebContext wc(&queueManager, &dac, dbuf);
-    webServer.start(&wc);
+	WebServer webServer(wc); // Specify the web server port
 //	ESP_LOGI("GPSReader", "started");
 //	GPSReader gpsReader(UART_NUM_1, 4, 5, 9600);
 //    gpsReader.initialize();
