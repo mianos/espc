@@ -11,16 +11,22 @@
 #define PCNT_INPUT_SIG_IO 15
 #define PCNT_INPUT_SIG_TRIGGER GPIO_NUM_10
 
-#define PCNT_HIGH_LIMIT 20000
+#define PCNT_HIGH_LIMIT 32000
 #define PCNT_LOW_LIMIT -1
 
-Counter::Counter(CircularBuffer& dbuf) : dbuf(dbuf), state(IDLE), lc(0), sequenceNumber(0), loops(10) {
+static const char* TAG = "Counter";
+
+Counter::Counter(CircularBuffer& dbuf) : dbuf(dbuf) {
     pcnt_unit_config_t unit_config = {};
     unit_config.high_limit = PCNT_HIGH_LIMIT;
     unit_config.low_limit = PCNT_LOW_LIMIT;
-    unit_config.flags.accum_count = true;
+    //unit_config.flags.accum_count = true;
 
     ESP_ERROR_CHECK(pcnt_new_unit(&unit_config, &this->pcnt_unit));
+
+    pcnt_event_callbacks_t cbs = {};
+    cbs.on_reach = overflowHandler;
+    ESP_ERROR_CHECK(pcnt_unit_register_event_callbacks(this->pcnt_unit, &cbs, this));
 
     pcnt_chan_config_t chan_a_config = {};
     chan_a_config.edge_gpio_num = PCNT_INPUT_SIG_IO;
@@ -32,6 +38,7 @@ Counter::Counter(CircularBuffer& dbuf) : dbuf(dbuf), state(IDLE), lc(0), sequenc
     ESP_ERROR_CHECK(pcnt_channel_set_edge_action(this->pcnt_chan_a, PCNT_CHANNEL_EDGE_ACTION_INCREASE, PCNT_CHANNEL_EDGE_ACTION_HOLD));
     ESP_ERROR_CHECK(pcnt_unit_clear_count(this->pcnt_unit));
     ESP_ERROR_CHECK(pcnt_unit_start(this->pcnt_unit));
+
 
     ESP_ERROR_CHECK(gpio_install_isr_service(0));
     gpio_config_t io_conf = {};
@@ -50,9 +57,18 @@ Counter::Counter(CircularBuffer& dbuf) : dbuf(dbuf), state(IDLE), lc(0), sequenc
 void Counter::process_count_queue() {
     MeasurementData measurement;
     if (xQueueReceive(this->measurement_queue, &measurement, 0) == pdPASS) {
+		// Explicitly cast PCNT_HIGH_LIMIT and measurement.overflows to uint64_t before multiplication
+		uint64_t overflowsCalculated = static_cast<uint64_t>(PCNT_HIGH_LIMIT) * static_cast<uint64_t>(measurement.overflows);
+		measurement.counterValue = static_cast<uint64_t>(measurement.rawCounterValue) + overflowsCalculated;
 		dbuf.putFront(measurement);
-        ESP_LOGI("Counter", "last %d serial %d period %d", measurement.counterValue, measurement.sequenceNumber, measurement.period);
+        ESP_LOGI(TAG, "last %llu serial %d period %d overflows %d", measurement.counterValue, measurement.sequenceNumber, measurement.period, measurement.overflows);
     }
+}
+
+bool IRAM_ATTR Counter::overflowHandler(pcnt_unit_t* unit, const pcnt_watch_event_data_t* event, void*arg) {
+    auto* inst = static_cast<Counter*>(arg);
+	inst->overflows++;
+	return true;
 }
 
 void IRAM_ATTR Counter::onePpsEdgeHandler(void* arg) {
@@ -76,8 +92,10 @@ void IRAM_ATTR Counter::onePpsEdgeHandler(void* arg) {
             vv.timerCount = esp_timer_get_time();
             vv.sequenceNumber = inst->sequenceNumber++;
 			vv.period = inst->lc; // inst->loops;
+			vv.overflows = inst->overflows;
 			inst->lc = 0;
-            pcnt_unit_get_count(inst->pcnt_unit, &vv.counterValue);
+			inst->overflows = 0;
+            pcnt_unit_get_count(inst->pcnt_unit, &vv.rawCounterValue);
             pcnt_unit_clear_count(inst->pcnt_unit);
             xQueueSendFromISR(inst->measurement_queue, &vv, NULL);
             inst->state = LOW;

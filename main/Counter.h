@@ -26,14 +26,16 @@ private:
         HIGH, 
         LOW_COUNT,
         COLLECT
-    } state;
+    } state = IDLE;
 
     QueueHandle_t measurement_queue;
     pcnt_unit_handle_t pcnt_unit;
     pcnt_channel_handle_t pcnt_chan_a;
-    int lc;
-    int sequenceNumber;
-    int loops;
+    int lc = 0;
+    int sequenceNumber = 0;
+    int loops = 10;
+    int overflows = 0;
 
+    static bool IRAM_ATTR overflowHandler(pcnt_unit_t* unit, const pcnt_watch_event_data_t* event, void*arg);
     static void IRAM_ATTR onePpsEdgeHandler(void* arg);
 };
