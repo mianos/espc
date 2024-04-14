@@ -1,18 +1,9 @@
 #pragma once
-
 #include <string>
 #include "esp_log.h"
 #include "esp_http_server.h"
-#include "QueueManagement.h"
-#include "CircularBuffer.h"
-#include "Counter.h"
-#include "dac1220.h"
 
 struct WebContext {
-	QueueManager* queueManager;	// queue for outgoing on demand UBX messages
-	DAC1220 *dac;
-	CircularBuffer& dbuf;
-	Counter& cnt;
 };
 
 class WebServer {
@@ -26,7 +17,4 @@ private:
     static httpd_uri_t getUri;
     static httpd_uri_t postUri;
     uint16_t port;
-
-    static void setHardwareCounterValue(int value);
-    static int getHardwareCounterValue();
 };
