@@ -16,4 +16,12 @@ idf_component_register(
 		PayloadExtractor.cpp
     INCLUDE_DIRS
         "."
+    REQUIRES
+        driver
+        esp_timer
+        esp_http_server
+        json
+        nvs_flash
+        esp_wifi
 )
+#        button
