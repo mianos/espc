@@ -1,8 +1,9 @@
+set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
 idf_component_register(
     SRCS
         main.cpp
-        wifimanager.cpp
-        nv.cpp
         Counter.cpp
         web.cpp
         gps.cpp
@@ -11,7 +12,6 @@ idf_component_register(
         UBXProtocol.cpp
         UBXMessage.cpp
         QueueManagement.cpp
-        dac1220.cpp
         CircularBuffer.cpp
 		PayloadExtractor.cpp
     INCLUDE_DIRS
@@ -19,9 +19,8 @@ idf_component_register(
     REQUIRES
         driver
         esp_timer
+        wifimanager
+        nvsstoragemanager
+        jsonwrapper
         esp_http_server
-        json
-        nvs_flash
-        esp_wifi
 )
-#        button

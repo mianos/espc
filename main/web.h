@@ -6,11 +6,11 @@
 #include "QueueManagement.h"
 #include "CircularBuffer.h"
 #include "Counter.h"
-#include "dac1220.h"
+//#include "dac1220.h"
 
 struct WebContext {
 	QueueManager* queueManager;	// queue for outgoing on demand UBX messages
-	DAC1220 *dac;
+	//DAC1220 *dac;
 	CircularBuffer& dbuf;
 	Counter& cnt;
 };

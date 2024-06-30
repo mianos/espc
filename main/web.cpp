@@ -64,7 +64,7 @@ esp_err_t post_dac_handler(httpd_req_t *req) {
     float voltage;
     esp_err_t result = extract_value_from_payload(req, "voltage", &voltage, convert_to_float);
     if (result == ESP_OK) {
-        ctx->dac->set_voltage(voltage);
+//        ctx->dac->set_voltage(voltage);
         ESP_LOGI(TAG, "DAC voltage set to %.4f", voltage);
     } else {
         ESP_LOGE(TAG, "Failed to set DAC voltage");
