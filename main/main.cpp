@@ -11,6 +11,7 @@
 #include "QueueManagement.h"
 #include "Counter.h"
 #include "CircularBuffer.h"
+#include "gp8.h"
 
 static const char *TAG = "gpsdo";
 
@@ -37,14 +38,13 @@ extern "C" void app_main() {
 
 	auto cnt = Counter(dbuf);
 	QueueManager queueManager;
-//	DAC1220 dac;
-//	dac.begin();
-	//WebContext wc(&queueManager, &dac, dbuf, cnt);
-	WebContext wc(&queueManager, dbuf, cnt);
+	GP8211S dac;
+	dac.setDACOutRange(GP8::eOutputRange5V);
+
+	WebContext wc(&queueManager, &dac, dbuf, cnt);
 	WebServer webServer(wc); // Specify the web server port
 	ESP_LOGI("GPSReader", "started");
- 	//uart, tx, rx 
-	GPSReader gpsReader(UART_NUM_1, 19, 17, 9600);
+	GPSReader gpsReader(UART_NUM_1, 19, 17, 9600); //uart, tx, rx 
     gpsReader.initialize();
     gpsReader.startReadLoopTask();
 //	esp_log_level_set("*", ESP_LOG_INFO);

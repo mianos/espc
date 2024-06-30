@@ -14,6 +14,7 @@ idf_component_register(
         QueueManagement.cpp
         CircularBuffer.cpp
 		PayloadExtractor.cpp
+		gp8.cpp
     INCLUDE_DIRS
         "."
     REQUIRES
