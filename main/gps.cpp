@@ -50,7 +50,7 @@ void GPSReader::readLoop() {
     while (true) {
         int len = uart_read_bytes(uartPort, data, bufferSize - 1, pdMS_TO_TICKS(100));
         for (uint8_t* ptr = data; ptr < data + len; ++ptr) { // Note: Corrected 'length' to 'len'
-//		    printf("%c", *ptr);
+		    //printf("%c", *ptr);
             auto result = decoder.consume(*ptr);
             switch (result.type) {
                 case GNSSDecoder::ResultType::NMEA:
@@ -101,16 +101,19 @@ void GPSReader::passThroughLoop() {
         int length = uart_read_bytes(uartPort, data, bufferSize, pdMS_TO_TICKS(20));
         if (length > 0) {
             // Write binary data directly to UART_NUM_0
-            uart_write_bytes(UART_NUM_0, reinterpret_cast<const char*>(data), length);
+            //uart_write_bytes(UART_NUM_0, reinterpret_cast<const char*>(data), length);
+            for (int ii = 0; ii < length; ii++) {
+				printf("%c", data[ii]);
+			}
         }
-
+#if 0
         // Reading from console (UART_NUM_0) and sending to GPS module
-        length = uart_read_bytes(UART_NUM_0, data, bufferSize, 0); // Non-blocking read
+        length = uart_read_bytes(UART_NUM_1, data, bufferSize, 0); // Non-blocking read
         if (length > 0) {
             // Write binary data directly to the GPS module's UART
             uart_write_bytes(uartPort, reinterpret_cast<const char*>(data), length);
         }
-
+#endif
         vTaskDelay(pdMS_TO_TICKS(20)); // Short delay to prevent task starvation
     }
 }

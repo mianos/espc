@@ -197,14 +197,16 @@ void DAC1220::set_value(uint32_t value) {
  */
 void DAC1220::set_voltage(double value) {
   // Range check to prevent overflow.
+#if 0
   if (value < 0.0) {
     ESP_LOGE(TAG,"too low %g", value);
   } else if (value >= 2*referenceVoltage) {
     ESP_LOGE(TAG,"too high %g", value);
   }
+#endif
   auto ratio = value / referenceVoltage;
   uint32_t count = ratio * 1048576; // 2^20
-  ESP_LOGD(TAG,"value %g reference %g ratio %g count %lu", value, referenceVoltage, ratio, count);
+  ESP_LOGI(TAG,"value %g reference %g ratio %g count %lu", value, referenceVoltage, ratio, count);
   set_value(count << 4);
 }
 
