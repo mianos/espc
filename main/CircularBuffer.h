@@ -12,6 +12,7 @@ public:
 
     void putFront(const MeasurementData& item);
 	std::optional<std::pair<std::vector<MeasurementData>, bool>> getMeasurementDatasGreaterThanSequence(int sequence);
+	bool isDataAvailableForSequence(int sequence);
 
 private:
     size_t size() const;

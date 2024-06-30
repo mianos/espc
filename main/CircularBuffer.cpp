@@ -57,3 +57,22 @@ size_t CircularBuffer::size() const {
     if (head_ >= tail_) return head_ - tail_;
     return capacity_ + head_ - tail_;
 }
+
+bool CircularBuffer::isDataAvailableForSequence(int sequence) {
+    MutexLock lock(bufferMutex);
+
+    if (sequence > highestSequenceNumber) {
+        return false;
+    }
+
+    size_t count = size();
+    size_t index = tail_;
+    while (count--) {
+        if (buffer_[index].sequenceNumber >= sequence) {
+            return true;
+        }
+        index = (index + 1) % capacity_;
+    }
+
+    return false;
+}

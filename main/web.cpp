@@ -94,6 +94,21 @@ int parseSequenceNumber(const std::string& cookie) {
     return -1; // Indicates no valid sequence number found
 }
 
+
+
+int get_max_wait_parameter(httpd_req_t *req) {
+    char query[128];
+    char value[32];
+    int max_wait = -1;
+
+    if (httpd_req_get_url_query_str(req, query, sizeof(query)) == ESP_OK) {
+        if (httpd_query_key_value(query, "max_wait", value, sizeof(value)) == ESP_OK) {
+            max_wait = atoi(value);
+        }
+    }
+    return max_wait;
+}
+
 esp_err_t WebServer::getHandler(httpd_req_t *req) {
 	GET_CONTEXT(req, ctx);
     auto cookie = get_cookie_header(req);
@@ -103,6 +118,20 @@ esp_err_t WebServer::getHandler(httpd_req_t *req) {
         httpd_resp_send_500(req);
         return ESP_FAIL;
     }
+
+	auto startTime = esp_timer_get_time(); // Start time in microseconds
+	auto max_wait = get_max_wait_parameter(req);
+	auto endTime = startTime;
+	if (max_wait != -1) {
+		endTime = startTime + (max_wait * 1000000); // End time in microseconds
+	}
+	while (esp_timer_get_time() < endTime) {
+		if (ctx->dbuf.isDataAvailableForSequence(seqNum)) {
+			break;
+		}
+		vTaskDelay(pdMS_TO_TICKS(100));
+	}
+
     auto result = ctx->dbuf.getMeasurementDatasGreaterThanSequence(seqNum);
 
 	if (result->second) {
@@ -145,10 +174,8 @@ esp_err_t set_period(httpd_req_t *req) {
 	GET_CONTEXT(req, ctx);
     int period;
     if (extract_value_from_payload(req, "period", &period, convert_to_int) == ESP_OK) {
-        ESP_LOGI(TAG, "setting period to %d", period);
 		ctx->cnt.set_loops(period);
     } else {
-        ESP_LOGE(TAG, "failed to extract period");
         httpd_resp_send_500(req);
         return ESP_FAIL;
     }
